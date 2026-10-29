@@ -5,6 +5,7 @@ description = "Governed runtime for AI agents that take real actions: MCP tools,
 requires-python = ">=3.12,<3.13"
 dependencies = [
     "aiosqlite>=0.20",
+    "alembic>=1.14",
     "pydantic-settings>=2.6",
     "sqlalchemy[asyncio]>=2.0.36",
 ]
