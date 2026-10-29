@@ -1,7 +1,7 @@
 # Warden Agent Runtime — 7-Day Plan
 
 ## Progress
-- [ ] Day 1 — Setup (Day 0) + foundation: config, logging, exceptions, DB, middlewares, CI
+- [x] Day 1 — Setup (Day 0) + foundation: config, logging, exceptions, DB, middlewares, CI
 - [ ] Day 2 — Data layer, LLM clients, auth
 - [ ] Day 3 — MCP servers + ToolClient
 - [ ] Day 4 — Policies + agents
@@ -49,7 +49,7 @@ Default roles (`TOOL_PERMISSION_RULES` in config):
 | 0a | `docs: add project guidelines (CLAUDE.md)` | CLAUDE.md | — (docs) |
 | 0b | `docs: add 7-day project plan` | docs/PLAN.md | — (docs) |
 | 1 | `build: init uv project with Python 3.12` | pyproject.toml, uv.lock, .python-version, app/__init__.py, tests/unit/test_smoke.py | `test_import_app_when_installed_succeeds` |
-| 2 | `chore: add .gitignore and .env.example` | .gitignore (section 10 + `*.db`, `evals/reports/`), .env.example | smoke test still green |
+| 2 | `chore: add .gitignore, .gitattributes and .env.example` | .gitignore (section 10 + `*.db`, `evals/reports/`), .gitattributes (`* text=auto eol=lf`), .env.example | smoke test still green |
 | 3 | `build: configure ruff, mypy and pytest` | pyproject.toml (tool sections, strict mypy with `files = ["app", "tests"]`, asyncio_mode=auto) | `uv run mypy` + pytest green |
 | 4 | `chore: add pre-commit hooks for ruff, mypy and pytest` | .pre-commit-config.yaml (local hooks: `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest -q`) | `uv run pre-commit run --all-files` |
 | 5 | `chore: scaffold app layer packages` | app/{core,middlewares,routers,schemas,services,orchestrators,agents,prompts,clients,repositories,models,db}/__init__.py, tests/unit/<same>/__init__.py, tests/integration/__init__.py | `test_layer_packages_when_imported_exist` |
@@ -60,12 +60,14 @@ Default roles (`TOOL_PERMISSION_RULES` in config):
 | 10 | `feat(db): add async engine and session factory` | app/db/session.py, app/db/base.py | tests/unit/db/test_session.py `test_get_session_when_sqlite_memory_executes_select` |
 | 11 | `build(db): set up Alembic for async SQLite` | alembic.ini, app/db/migrations/{env.py,script.py.mako} | `test_alembic_upgrade_when_empty_db_succeeds` |
 | 12 | `feat(middlewares): add RequestIdMiddleware with access logging` | app/middlewares/request_id_middleware.py | `test_dispatch_when_no_header_sets_x_request_id` |
-| 13 | `feat(middlewares): add ErrorHandlerMiddleware` | app/middlewares/error_handler_middleware.py | `test_dispatch_when_warden_error_returns_json_problem` |
+| 13 | `feat(middlewares): add ErrorHandlerMiddleware` | app/middlewares/error_handler_middleware.py | `test_dispatch_when_warden_error_returns_json_error` |
 | 14 | `feat(app): add main.py with health router` | app/main.py, app/routers/health_router.py, app/core/dependencies.py | tests/integration/test_health.py `test_get_health_when_app_running_returns_ok` |
 | 15 | `docs(plan): mark Day 1 complete` | docs/PLAN.md | — |
 
+Unplanned extra commit: `chore: ignore local Claude Code settings` (.gitignore).
+
 **Run / test:**
-`uv sync ; uv run pre-commit install ; uv run alembic upgrade head ; uv run uvicorn app.main:app --reload`
+`uv sync ; uv run pre-commit install ; uv run alembic upgrade head ; uv run uvicorn app.main:app --reload --no-access-log`
 then `curl.exe http://127.0.0.1:8000/api/v1/health` + the green check.
 **Done when:** CI is green on GitHub; `/api/v1/health` returns `{"status":"ok"}` with an `X-Request-ID` header; `alembic upgrade head` creates `warden.db`.
 **Risks → fallback:** async Alembic on Windows path issues → use `sqlite+aiosqlite:///./warden.db` relative URL and run sync `run_sync` in env.py. Mypy strictness slows the day → enable strict only for `app/`, relax for tests.
@@ -195,7 +197,7 @@ The orchestrator imports only agents, policies, schemas and the `CheckpointRepos
 | 13 | `feat(web): add approvals inbox` | web/pages/approvals.py | `AppTest`: `test_approvals_when_approve_clicked_calls_api` |
 | 14 | `docs(plan): mark Day 6 complete` | docs/PLAN.md | — |
 
-**Run / test:** terminal 1 `uv run uvicorn app.main:app` ; terminal 2 `uv run streamlit run web/app.py` ;
+**Run / test:** terminal 1 `uv run uvicorn app.main:app --no-access-log` ; terminal 2 `uv run streamlit run web/app.py` ;
 `curl.exe -X POST http://127.0.0.1:8000/api/v1/agent-runs -H "X-API-Key: operator-dev-key" -H "Content-Type: application/json" -d "{\"task\":\"Find orders that failed in the last 24 hours and open a GitHub issue for the top 3 causes\"}"` + the green check.
 **Done when:** the headline task runs end-to-end with real Groq: it pauses, an admin approves it in the console, the issue is created (dry-run or live), and the report, trace, metrics and audit log are all visible.
 **Risks → fallback:** a heavy day → if behind, cut the console to one page (runs + approve buttons) and move the metrics view to Day 7 morning. Background-task + session lifetime bugs → the service opens its own session per run via the session factory.
