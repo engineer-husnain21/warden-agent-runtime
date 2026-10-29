@@ -49,7 +49,7 @@ Default roles (`TOOL_PERMISSION_RULES` in config):
 | 0a | `docs: add project guidelines (CLAUDE.md)` | CLAUDE.md | — (docs) |
 | 0b | `docs: add 7-day project plan` | docs/PLAN.md | — (docs) |
 | 1 | `build: init uv project with Python 3.12` | pyproject.toml, uv.lock, .python-version, app/__init__.py, tests/unit/test_smoke.py | `test_import_app_when_installed_succeeds` |
-| 2 | `chore: add .gitignore and .env.example` | .gitignore (section 10 + `*.db`, `evals/reports/`), .env.example | smoke test still green |
+| 2 | `chore: add .gitignore, .gitattributes and .env.example` | .gitignore (section 10 + `*.db`, `evals/reports/`), .gitattributes (`* text=auto eol=lf`), .env.example | smoke test still green |
 | 3 | `build: configure ruff, mypy and pytest` | pyproject.toml (tool sections, strict mypy with `files = ["app", "tests"]`, asyncio_mode=auto) | `uv run mypy` + pytest green |
 | 4 | `chore: add pre-commit hooks for ruff, mypy and pytest` | .pre-commit-config.yaml (local hooks: `uv run ruff check`, `uv run ruff format --check`, `uv run mypy`, `uv run pytest -q`) | `uv run pre-commit run --all-files` |
 | 5 | `chore: scaffold app layer packages` | app/{core,middlewares,routers,schemas,services,orchestrators,agents,prompts,clients,repositories,models,db}/__init__.py, tests/unit/<same>/__init__.py, tests/integration/__init__.py | `test_layer_packages_when_imported_exist` |

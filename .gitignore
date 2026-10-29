@@ -1,0 +1,28 @@
+# Python / tooling (CLAUDE.md section 10)
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local data
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Eval reports (generated)
+evals/reports/*
+!evals/reports/.gitkeep
+
+# Editors / OS
+.idea/
+.vscode/
+Thumbs.db
+.DS_Store
