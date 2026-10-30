@@ -2,12 +2,14 @@
 
 from typing import Any
 
+import httpx
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
 from mcp_servers.github.dry_run_github_api import DryRunGitHubApi
 from mcp_servers.github.github_api import GitHubApi, IssueState
 from mcp_servers.github.github_settings import GitHubSettings
+from mcp_servers.github.live_github_api import LiveGitHubApi
 
 MAX_TITLE_LENGTH = 256
 MAX_LIST_LIMIT = 100
@@ -37,7 +39,13 @@ def create_server(api: GitHubApi, repo: str) -> MCPServer:
 
 
 def build_api(settings: GitHubSettings) -> GitHubApi:
-    return DryRunGitHubApi(settings.repo)
+    """Dry-run unless GITHUB_MODE=live; live mode refuses to start without a token."""
+    if settings.mode == "dry-run":
+        return DryRunGitHubApi(settings.repo)
+    token = settings.token.get_secret_value() if settings.token else ""
+    if not token:
+        raise ValueError("GITHUB_TOKEN is required when GITHUB_MODE=live")
+    return LiveGitHubApi(settings.repo, token, settings.api_url, httpx.AsyncClient(timeout=30.0))
 
 
 def main() -> None:
