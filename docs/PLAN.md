@@ -3,7 +3,7 @@
 ## Progress
 - [x] Day 1 — Setup (Day 0) + foundation: config, logging, exceptions, DB, middlewares, CI
 - [x] Day 2 — Data layer, LLM clients, auth
-- [ ] Day 3 — MCP servers + ToolClient
+- [x] Day 3 — MCP servers + ToolClient
 - [ ] Day 4 — Policies + agents
 - [ ] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
 - [ ] Day 6 — Services, routers, Streamlit console
@@ -99,7 +99,7 @@ Notes: `httpx` moved from dev to runtime dependency (#8); `ConfigurationError` a
 
 **Run / test:** `uv run alembic upgrade head ; uv run pytest tests/unit/repositories tests/unit/clients -q` + the green check.
 Manual smoke (needs `GROQ_API_KEY` or `GEMINI_API_KEY` in `.env`):
-`uv run python -c "import asyncio; from app.core.dependencies import get_llm_client; from app.schemas.llm_message import LlmMessage; print(asyncio.run(get_llm_client().complete([LlmMessage(role='user', content='Say hi')])))"`.
+`uv run python -X utf8 -c "import asyncio; from app.core.dependencies import get_llm_client; from app.schemas.llm_message import LlmMessage; print(asyncio.run(get_llm_client().complete([LlmMessage(role='user', content='Say hi')])))"`.
 **Done when:** the migration creates 4 tables; the LLM provider switches between Groq and Gemini by editing only `LLM_PROVIDER`; an unauthenticated request gets a 401.
 **Risks → fallback:** Gemini API differences eat time → ship Groq first, Gemini via its OpenAI-compatible endpoint. SQLAlchemy async session lifetimes in tests → one `session` fixture with `sqlite+aiosqlite:///:memory:` + `StaticPool`.
 
@@ -124,7 +124,10 @@ Manual smoke (needs `GROQ_API_KEY` or `GEMINI_API_KEY` in `.env`):
 | 10 | `feat(core): start and stop MCP sessions in app lifespan` | app/main.py, app/core/dependencies.py | `test_lifespan_when_app_starts_connects_tool_client` |
 | 11 | `docs(plan): mark Day 3 complete` | docs/PLAN.md | — |
 
-**Run / test:** `uv run python -m mcp_servers.warehouse.seed ; uv run mcp dev mcp_servers/warehouse/server.py` (MCP Inspector) ; `uv run pytest tests/unit/mcp_servers tests/integration -q` + the green check.
+Extra commits: `fix(core): default Groq model to openai/gpt-oss-120b with current prices` (Llama 3.3 70B was retired on Groq), `ci: bump astral-sh/setup-uv to v7`.
+Notes: uses `mcp` 2.x, where FastMCP is renamed `MCPServer`. Server internals follow one class per file (`WarehouseStore`, `DryRunGitHubApi`/`LiveGitHubApi` behind a `GitHubApi` Protocol, `OutboxStore`, `<Name>Settings`). `ToolSpec`/`ToolCall`/`ToolResult` are one file each. `McpToolClient` holds its sessions in one background task it owns, because anyio needs open and close in the same task. MCP env vars were added to `.env.example` in #10. Live check done: issue #1 in `warden-sandbox`.
+
+**Run / test:** `uv run python -m mcp_servers.warehouse.seed ; uv run pytest tests/unit/mcp_servers tests/integration -q` + the green check. Then `uv run uvicorn app.main:app --no-access-log` should log `Connected to MCP servers: warehouse, github, notifier`. (The MCP Inspector `mcp dev` needs the extra `mcp[cli]` dependency, which is not installed.)
 **Done when:** `McpToolClient.list_tools()` returns the tools of all 3 servers; with `GITHUB_MODE=live`, one real issue is created in `warden-sandbox`.
 **Risks → fallback:** stdio subprocesses on Windows (Proactor loop, `uv run` paths) → launch with `sys.executable -m mcp_servers.<name>.server`; if that still fails, use FastMCP's streamable-HTTP transport on localhost ports. GitHub token issues → stay in dry-run and do the live demo on Day 7.
 
