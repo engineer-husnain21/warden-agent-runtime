@@ -2,7 +2,7 @@
 
 ## Progress
 - [x] Day 1 — Setup (Day 0) + foundation: config, logging, exceptions, DB, middlewares, CI
-- [ ] Day 2 — Data layer, LLM clients, auth
+- [x] Day 2 — Data layer, LLM clients, auth
 - [ ] Day 3 — MCP servers + ToolClient
 - [ ] Day 4 — Policies + agents
 - [ ] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
@@ -94,8 +94,12 @@ then `curl.exe http://127.0.0.1:8000/api/v1/health` + the green check.
 | 12 | `feat(middlewares): add ApiKeyAuthMiddleware with roles` | app/middlewares/api_key_auth_middleware.py, app/schemas/role.py, app/main.py, config `API_KEYS` + `AUTH_EXEMPT_PATHS` (default `/api/v1/health`, `/docs`, `/openapi.json`) | `test_dispatch_when_key_unknown_returns_401`, `test_dispatch_when_viewer_key_sets_role`, `test_dispatch_when_exempt_path_without_key_passes` (parametrised over the 3 paths); Day 1 `test_get_health_when_app_running_returns_ok` stays green with no key |
 | 13 | `docs(plan): mark Day 2 complete` | docs/PLAN.md | — |
 
+Extra commits: `chore: hide Alembic template from GitHub language stats`, `feat(db): add column helpers and shared db_session test fixture` (split out of #1), `docs: allow autonomous commits in workflow rules`.
+Notes: `httpx` moved from dev to runtime dependency (#8); `ConfigurationError` and `AuthenticationError` (401) added to `core/exceptions.py` (#11, #12).
+
 **Run / test:** `uv run alembic upgrade head ; uv run pytest tests/unit/repositories tests/unit/clients -q` + the green check.
-Manual smoke: `uv run python -c "import asyncio; from app.core.dependencies import get_llm_client; print(asyncio.run(get_llm_client().complete('Say hi')))"`.
+Manual smoke (needs `GROQ_API_KEY` or `GEMINI_API_KEY` in `.env`):
+`uv run python -c "import asyncio; from app.core.dependencies import get_llm_client; from app.schemas.llm_message import LlmMessage; print(asyncio.run(get_llm_client().complete([LlmMessage(role='user', content='Say hi')])))"`.
 **Done when:** the migration creates 4 tables; the LLM provider switches between Groq and Gemini by editing only `LLM_PROVIDER`; an unauthenticated request gets a 401.
 **Risks → fallback:** Gemini API differences eat time → ship Groq first, Gemini via its OpenAI-compatible endpoint. SQLAlchemy async session lifetimes in tests → one `session` fixture with `sqlite+aiosqlite:///:memory:` + `StaticPool`.
 
