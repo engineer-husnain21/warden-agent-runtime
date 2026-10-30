@@ -18,6 +18,11 @@ class NotFoundError(WardenError):
     error_code = "not_found"
 
 
+class AuthenticationError(WardenError):
+    status_code = 401
+    error_code = "unauthenticated"
+
+
 class PermissionDeniedError(WardenError):
     status_code = 403
     error_code = "permission_denied"
@@ -33,6 +38,13 @@ class ExternalServiceError(WardenError):
 
     status_code = 502
     error_code = "external_service_error"
+
+
+class ConfigurationError(WardenError):
+    """A required setting is missing or invalid (e.g. no API key for the chosen LLM provider)."""
+
+    status_code = 500
+    error_code = "configuration_error"
 
 
 class AgentOutputError(WardenError):

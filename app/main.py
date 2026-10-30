@@ -4,8 +4,9 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
-from app.core.dependencies import get_engine
+from app.core.dependencies import get_engine, get_http_client
 from app.core.logging import configure_logging
+from app.middlewares.api_key_auth_middleware import ApiKeyAuthMiddleware
 from app.middlewares.error_handler_middleware import ErrorHandlerMiddleware
 from app.middlewares.request_id_middleware import RequestIdMiddleware
 from app.routers import health_router
@@ -16,16 +17,23 @@ API_PREFIX = "/api/v1"
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
+    await get_http_client().aclose()
     await get_engine().dispose()
 
 
 def create_app() -> FastAPI:
-    configure_logging(get_settings().log_level)
+    settings = get_settings()
+    configure_logging(settings.log_level)
 
     app = FastAPI(title="Warden Agent Runtime", version="0.1.0", lifespan=lifespan)
 
-    # The last middleware added runs first: RequestId wraps ErrorHandler,
-    # so error responses still carry X-Request-ID.
+    # The last middleware added runs first: RequestId -> ErrorHandler -> ApiKeyAuth,
+    # so auth failures become JSON errors that still carry X-Request-ID.
+    app.add_middleware(
+        ApiKeyAuthMiddleware,
+        api_keys=settings.api_keys,
+        exempt_paths=settings.auth_exempt_paths,
+    )
     app.add_middleware(ErrorHandlerMiddleware)
     app.add_middleware(RequestIdMiddleware)
 
