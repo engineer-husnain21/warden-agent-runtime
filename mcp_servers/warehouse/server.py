@@ -29,17 +29,18 @@ def create_server(store: WarehouseStore) -> MCPServer:
         """Run one read-only SQL SELECT (SQLite dialect) and return the rows.
 
         Timestamps are UTC text like '2026-10-30 12:00:00', so filter recent rows with
-        `created_at >= datetime('now', '-1 day')`.
+        `created_at >= datetime('now', '-1 day')`. Large results are cut off (`truncated`):
+        prefer GROUP BY / LIMIT.
         """
-        rows = store.run_query(sql)
-        return {"rows": rows, "row_count": len(rows)}
+        rows, truncated = store.run_query(sql)
+        return {"rows": rows, "row_count": len(rows), "truncated": truncated}
 
     return server
 
 
 def main() -> None:
     settings = WarehouseSettings()
-    create_server(WarehouseStore(settings.db_path)).run("stdio")
+    create_server(WarehouseStore(settings.db_path, settings.max_rows)).run("stdio")
 
 
 if __name__ == "__main__":
