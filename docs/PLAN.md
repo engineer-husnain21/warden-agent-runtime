@@ -11,7 +11,7 @@
 
 ## Rules that apply every day
 - One branch per day → PR → merge with **"Create a merge commit"** (never squash), then delete the branch.
-- Before every commit: show the changed files and message, wait for approval, commit, then `git push`.
+- Commit and push autonomously once the green check passes and no secrets are staged (CLAUDE.md 12.4).
 - Every commit is green. The green check (PowerShell, Windows):
   `uv run ruff check . ; uv run ruff format --check . ; uv run mypy ; uv run pytest -q`
   (pre-commit and CI run exactly these commands as local `uv run` hooks / steps).

@@ -265,7 +265,9 @@ When any of these new layers is created, update the tables in sections 1, 2, 3 a
 - **Conventional Commits**, English, imperative: `feat:`, `fix:`, `test:`, `docs:`, `refactor:`, `chore:`, `ci:`, `build:`.
   Example: `feat(policies): add ToolPermissionPolicy with role rules`.
 - **Every commit must be green:** ruff, mypy and pytest pass (pre-commit enforces it). Never use `--no-verify`.
-- **Before every commit**, show the user the list of changed files and the commit message, and wait for approval.
+- **Commit and push on your own** when the green check passes. Before each commit, verify no `.env`, `*.db`, keys or
+  tokens are staged. Ask the user only for: PR merges, deviations from `docs/PLAN.md`, new dependencies, design
+  decisions, anything involving secrets, or when something fails twice.
 - **Push after every commit** so GitHub activity reflects real progress.
 - **Branch per feature/day** (`feat/day-2-mcp-servers`), open a PR with a clear description, and merge it with
   *"Create a merge commit"* or *"Rebase and merge"*. **Never squash**, because squash collapses the small commits.
