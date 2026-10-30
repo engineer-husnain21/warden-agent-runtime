@@ -1,9 +1,11 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
+LlmProvider = Literal["groq", "gemini"]
 
 
 class Settings(BaseSettings):
@@ -14,6 +16,23 @@ class Settings(BaseSettings):
     app_env: str = "local"
     log_level: LogLevel = "INFO"
     database_url: str = "sqlite+aiosqlite:///./warden.db"
+
+    # LLM: switching provider needs only LLM_PROVIDER (plus that provider's key).
+    llm_provider: LlmProvider = "groq"
+    llm_timeout_seconds: float = 60.0
+    llm_max_attempts: int = 4
+
+    groq_api_key: SecretStr | None = None
+    groq_model: str = "llama-3.3-70b-versatile"
+    groq_base_url: str = "https://api.groq.com/openai/v1"
+    groq_input_price_per_mtok: float = 0.59
+    groq_output_price_per_mtok: float = 0.79
+
+    gemini_api_key: SecretStr | None = None
+    gemini_model: str = "gemini-2.5-flash"
+    gemini_base_url: str = "https://generativelanguage.googleapis.com/v1beta"
+    gemini_input_price_per_mtok: float = 0.30
+    gemini_output_price_per_mtok: float = 2.50
 
 
 @lru_cache

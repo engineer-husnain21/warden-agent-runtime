@@ -35,6 +35,13 @@ class ExternalServiceError(WardenError):
     error_code = "external_service_error"
 
 
+class ConfigurationError(WardenError):
+    """A required setting is missing or invalid (e.g. no API key for the chosen LLM provider)."""
+
+    status_code = 500
+    error_code = "configuration_error"
+
+
 class AgentOutputError(WardenError):
     """An agent could not turn the LLM reply into its Output model."""
 

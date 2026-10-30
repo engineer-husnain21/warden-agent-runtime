@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
-from app.core.dependencies import get_engine
+from app.core.dependencies import get_engine, get_http_client
 from app.core.logging import configure_logging
 from app.middlewares.error_handler_middleware import ErrorHandlerMiddleware
 from app.middlewares.request_id_middleware import RequestIdMiddleware
@@ -16,6 +16,7 @@ API_PREFIX = "/api/v1"
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     yield
+    await get_http_client().aclose()
     await get_engine().dispose()
 
 
