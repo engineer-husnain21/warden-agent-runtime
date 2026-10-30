@@ -40,6 +40,14 @@ class Settings(BaseSettings):
     gemini_input_price_per_mtok: float = 0.30
     gemini_output_price_per_mtok: float = 2.50
 
+    # MCP: server name -> Python module started as `python -m <module>` over stdio.
+    mcp_server_modules: dict[str, str] = {
+        "warehouse": "mcp_servers.warehouse.server",
+        "github": "mcp_servers.github.server",
+        "notifier": "mcp_servers.notifier.server",
+    }
+    mcp_tool_timeout_seconds: float = 60.0
+
 
 @lru_cache
 def get_settings() -> Settings:

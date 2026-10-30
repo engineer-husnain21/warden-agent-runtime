@@ -1,23 +1,29 @@
 """Dependency wiring. Concrete classes are built here and injected with FastAPI `Depends`."""
 
+import os
+import sys
 from collections.abc import AsyncIterator
 from functools import lru_cache
 from pathlib import Path
 
 import httpx
+from mcp import StdioServerParameters
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
 from app.clients.gemini_llm_client import GeminiLlmClient
 from app.clients.groq_llm_client import GroqLlmClient
 from app.clients.llm_client import LlmClient
+from app.clients.mcp_tool_client import McpToolClient
+from app.clients.tool_client import ToolClient
 from app.core.config import get_settings
 from app.core.exceptions import ConfigurationError
 from app.core.file_prompt_loader import FilePromptLoader
 from app.core.prompt_loader import PromptLoader
 from app.db.session import build_engine, build_session_factory, get_session
 
-PROMPTS_DIR = Path(__file__).resolve().parents[1] / "prompts"
+PROJECT_ROOT = Path(__file__).resolve().parents[2]
+PROMPTS_DIR = PROJECT_ROOT / "app" / "prompts"
 
 
 @lru_cache
@@ -68,6 +74,22 @@ def get_llm_client() -> LlmClient:
 @lru_cache
 def get_prompt_loader() -> PromptLoader:
     return FilePromptLoader(PROMPTS_DIR)
+
+
+@lru_cache
+def get_tool_client() -> ToolClient:
+    """MCP servers run as child processes of this app; connected and closed in the lifespan."""
+    settings = get_settings()
+    servers = {
+        name: StdioServerParameters(
+            command=sys.executable,
+            args=["-m", module],
+            env=dict(os.environ),
+            cwd=str(PROJECT_ROOT),
+        )
+        for name, module in settings.mcp_server_modules.items()
+    }
+    return McpToolClient(servers, timeout_seconds=settings.mcp_tool_timeout_seconds)
 
 
 def _require_key(secret: SecretStr | None, env_name: str) -> str:
