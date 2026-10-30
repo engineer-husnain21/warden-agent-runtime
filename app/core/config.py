@@ -29,10 +29,10 @@ class Settings(BaseSettings):
     llm_max_attempts: int = 4
 
     groq_api_key: SecretStr | None = None
-    groq_model: str = "llama-3.3-70b-versatile"
+    groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"
-    groq_input_price_per_mtok: float = 0.59
-    groq_output_price_per_mtok: float = 0.79
+    groq_input_price_per_mtok: float = 0.15
+    groq_output_price_per_mtok: float = 0.60
 
     gemini_api_key: SecretStr | None = None
     gemini_model: str = "gemini-2.5-flash"

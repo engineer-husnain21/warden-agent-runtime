@@ -99,7 +99,7 @@ Notes: `httpx` moved from dev to runtime dependency (#8); `ConfigurationError` a
 
 **Run / test:** `uv run alembic upgrade head ; uv run pytest tests/unit/repositories tests/unit/clients -q` + the green check.
 Manual smoke (needs `GROQ_API_KEY` or `GEMINI_API_KEY` in `.env`):
-`uv run python -c "import asyncio; from app.core.dependencies import get_llm_client; from app.schemas.llm_message import LlmMessage; print(asyncio.run(get_llm_client().complete([LlmMessage(role='user', content='Say hi')])))"`.
+`uv run python -X utf8 -c "import asyncio; from app.core.dependencies import get_llm_client; from app.schemas.llm_message import LlmMessage; print(asyncio.run(get_llm_client().complete([LlmMessage(role='user', content='Say hi')])))"`.
 **Done when:** the migration creates 4 tables; the LLM provider switches between Groq and Gemini by editing only `LLM_PROVIDER`; an unauthenticated request gets a 401.
 **Risks → fallback:** Gemini API differences eat time → ship Groq first, Gemini via its OpenAI-compatible endpoint. SQLAlchemy async session lifetimes in tests → one `session` fixture with `sqlite+aiosqlite:///:memory:` + `StaticPool`.
 
