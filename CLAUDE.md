@@ -254,6 +254,7 @@ Web console in `web/` (Streamlit) for runs, traces and approvals.
 | **New layer:** permission decisions | `app/policies/` | Suffix `Policy`. `ToolPermissionPolicy` returns `allow` / `deny` / `needs_approval` for a tool call + role. Pure logic, no I/O. Called by orchestrators. Rules come from `core/config.py`. |
 | **New, outside `app/`:** MCP servers | `mcp_servers/<name>/` | Separate processes, own `server.py`. `warehouse` (read-only SQL on a demo SQLite database seeded from `data/`), `github` (list/create issues on a test repo), `notifier` (mock: writes to an outbox table). The app never imports from here. |
 | **New, outside `app/`:** eval suite | `evals/` | `scenarios/*.yaml`, `runner.py`, `reports/` (git-ignored). |
+| Fake clients for unit tests | `tests/fakes/` | `Fake<Name>Client` (e.g. `FakeLlmClient`, `FakeToolClient`). They implement the client Protocols with scripted results and no network. Unit tests use only these. |
 | Architecture decisions | `docs/adr/` | `0001-<title>.md` |
 | Day plan | `docs/PLAN.md` | — |
 
