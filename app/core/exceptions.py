@@ -18,6 +18,11 @@ class NotFoundError(WardenError):
     error_code = "not_found"
 
 
+class AuthenticationError(WardenError):
+    status_code = 401
+    error_code = "unauthenticated"
+
+
 class PermissionDeniedError(WardenError):
     status_code = 403
     error_code = "permission_denied"

@@ -4,6 +4,8 @@ from typing import Literal
 from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+from app.schemas.caller import Caller
+
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LlmProvider = Literal["groq", "gemini"]
 
@@ -16,6 +18,10 @@ class Settings(BaseSettings):
     app_env: str = "local"
     log_level: LogLevel = "INFO"
     database_url: str = "sqlite+aiosqlite:///./warden.db"
+
+    # Auth: API key -> caller identity and role. Paths listed here need no key.
+    api_keys: dict[str, Caller] = {}
+    auth_exempt_paths: list[str] = ["/api/v1/health", "/docs", "/openapi.json"]
 
     # LLM: switching provider needs only LLM_PROVIDER (plus that provider's key).
     llm_provider: LlmProvider = "groq"
