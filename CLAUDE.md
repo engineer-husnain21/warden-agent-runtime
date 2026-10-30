@@ -12,8 +12,8 @@ Every request follows one path, top to bottom:
 
 ```
 main.py → middlewares → routers → services → orchestrators → agents → clients (LLM, search, external APIs)
-                                     ↓
-                               repositories → db
+                                     ↓                                    ↓ (MCP over stdio)
+                               repositories → db                   mcp_servers/<name>/ (separate processes)
 ```
 
 ---
@@ -36,6 +36,7 @@ project-root/
     repositories/        # Data access
     models/              # DB entities (SQLAlchemy)
     db/                  # DB session and setup
+  mcp_servers/           # MCP servers, one folder each, run as separate processes (never imported by app/)
   tests/
     unit/                # Mirrors app/ folder by folder
     integration/         # End-to-end flows
@@ -67,6 +68,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `schemas/` | Input/output shapes and validation | Logic |
 | `prompts/` | Prompt text, one file per prompt | Code |
 | `core/` | Settings, DI setup, logger, exception classes | Feature logic |
+| `mcp_servers/` | Expose tools over MCP, each server in its own process with its own settings | Import from `app/`; get imported by `app/` (reached only via `McpToolClient`) |
 
 ---
 
@@ -107,6 +109,8 @@ Every folder inside `app/` has an `__init__.py`.
 | Test files | `test_<file>.py` | `test_planner_agent.py` |
 | Test functions | `test_<what>_when_<condition>_<expected>` | `test_run_when_no_sources_raises_error` |
 | Env vars | UPPER_SNAKE | `LLM_PROVIDER`, `GROQ_API_KEY` |
+| MCP servers | `mcp_servers/<name>/server.py` with `create_server()`; settings class `<Name>Settings` | `mcp_servers/warehouse/server.py` |
+| MCP tool names | snake_case verb, addressed by the app as `<server>.<tool>` | `warehouse.run_query` |
 
 **Suffix list:** `Service`, `Orchestrator`, `Agent`, `Client`, `Repository`, `Request`, `Response`, `Input`, `Output`, `Middleware`, `Error`.
 
