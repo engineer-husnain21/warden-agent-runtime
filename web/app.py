@@ -49,6 +49,8 @@ if runs:
         ],
         hide_index=True,
         width="stretch",
+        # Wide enough for "awaiting_approval" without cutting it off.
+        column_config={"status": st.column_config.TextColumn("status", width="medium")},
     )
 else:
     st.info("No runs yet.")

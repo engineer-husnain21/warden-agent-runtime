@@ -64,6 +64,11 @@ st.dataframe(
     ],
     hide_index=True,
     width="stretch",
+    # Wide enough for "awaiting_approval" / "needs_approval" without cutting them off.
+    column_config={
+        "status": st.column_config.TextColumn("status", width="medium"),
+        "decision": st.column_config.TextColumn("decision", width="medium"),
+    },
 )
 for step in steps:
     if step["tool_arguments"] or step["output"]:
