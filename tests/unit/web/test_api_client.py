@@ -46,3 +46,23 @@ def test_api_client_when_api_down_raises_not_reachable() -> None:
 
     with pytest.raises(WardenApiError, match="not reachable"):
         client.list_runs()
+
+
+@pytest.mark.parametrize(
+    "pasted_key", [" operator-dev-key", "operator-dev-key\n", "\toperator-dev-key  "]
+)
+def test_api_client_when_key_has_whitespace_sends_stripped_key(pasted_key: str) -> None:
+    seen: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        seen.append(request)
+        return httpx.Response(200, json=[])
+
+    client = WardenApiClient(
+        " http://api.test/ ", pasted_key, transport=httpx.MockTransport(handler)
+    )
+
+    client.list_runs()
+
+    assert seen[0].headers["X-API-Key"] == "operator-dev-key"
+    assert str(seen[0].url).startswith("http://api.test/api/v1/agent-runs")

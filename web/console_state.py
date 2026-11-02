@@ -21,5 +21,5 @@ def get_api_client() -> WardenApiClient:
     if existing is not None:
         return existing  # type: ignore[no-any-return]
     settings = ConsoleSettings()
-    api_key = st.session_state.get("api_key_input") or settings.api_key
+    api_key = (st.session_state.get("api_key_input") or settings.api_key).strip()
     return WardenApiClient(settings.api_url, api_key, settings.timeout_seconds)

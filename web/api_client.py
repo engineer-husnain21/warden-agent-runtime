@@ -18,8 +18,9 @@ class WardenApiClient:
         transport: httpx.BaseTransport | None = None,
     ) -> None:
         self._http = httpx.Client(
-            base_url=f"{base_url.rstrip('/')}{API_PREFIX}",
-            headers={"X-API-Key": api_key},
+            base_url=f"{base_url.strip().rstrip('/')}{API_PREFIX}",
+            # Pasted keys often carry spaces or newlines, which are illegal in HTTP headers.
+            headers={"X-API-Key": api_key.strip()},
             timeout=timeout_seconds,
             transport=transport,
         )
