@@ -5,8 +5,8 @@ from sqlalchemy import JSON, DateTime, Float, ForeignKey, Integer, String, Uniqu
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, str_enum_type, utc_now
-from app.models.run_step_kind import RunStepKind
-from app.models.run_step_status import RunStepStatus
+from app.schemas.run_step_kind import RunStepKind
+from app.schemas.run_step_status import RunStepStatus
 
 if TYPE_CHECKING:
     from app.models.agent_run import AgentRun

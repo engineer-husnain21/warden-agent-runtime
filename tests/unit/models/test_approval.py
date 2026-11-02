@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AgentRun, Approval, ApprovalStatus
+from app.models import AgentRun, Approval
+from app.schemas.approval_status import ApprovalStatus
 
 
 async def test_approval_when_created_is_pending_and_undecided(db_session: AsyncSession) -> None:

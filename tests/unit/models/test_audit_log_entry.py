@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AuditAction, AuditLogEntry
+from app.models import AuditLogEntry
+from app.schemas.audit_action import AuditAction
 
 
 async def test_audit_log_entry_when_created_sets_timestamp(db_session: AsyncSession) -> None:

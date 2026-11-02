@@ -5,8 +5,9 @@ from sqlalchemy import select
 
 from app.core.exceptions import InvalidInputError
 from app.db.base import utc_now
-from app.models import Approval, ApprovalStatus
+from app.models import Approval
 from app.repositories.base_repository import BaseRepository
+from app.schemas.approval_status import ApprovalStatus
 
 
 class ApprovalRepository(BaseRepository[Approval]):

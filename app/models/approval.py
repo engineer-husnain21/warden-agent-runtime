@@ -6,7 +6,7 @@ from sqlalchemy import JSON, DateTime, ForeignKey, Integer, String, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, str_enum_type, utc_now
-from app.models.approval_status import ApprovalStatus
+from app.schemas.approval_status import ApprovalStatus
 
 
 class Approval(Base):

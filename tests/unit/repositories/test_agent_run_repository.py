@@ -2,8 +2,11 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import NotFoundError
-from app.models import AgentRunStatus, RunStep, RunStepKind, RunStepStatus
+from app.models import RunStep
 from app.repositories.agent_run_repository import AgentRunRepository
+from app.schemas.agent_run_status import AgentRunStatus
+from app.schemas.run_step_kind import RunStepKind
+from app.schemas.run_step_status import RunStepStatus
 
 
 @pytest.fixture
