@@ -5,7 +5,7 @@
 - [x] Day 2 — Data layer, LLM clients, auth
 - [x] Day 3 — MCP servers + ToolClient
 - [x] Day 4 — Policies + agents
-- [ ] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
+- [x] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
 - [ ] Day 6 — Services, routers, Streamlit console
 - [ ] Day 7 — Evals + CI gate, README, ADRs, demo, final review
 
@@ -178,6 +178,10 @@ Notes: `BaseAgent` keeps the section 6 template and adds protected helpers (`_bu
 | 11 | `docs(adr): add 0002 durable runs with LangGraph checkpoints` | docs/adr/0002-durable-runs-langgraph-checkpoints.md | — |
 | 12 | `docs(adr): add 0003 service persists orchestrator StepEvents` | docs/adr/0003-step-event-stream-persistence.md | — |
 | 13 | `docs(plan): mark Day 5 complete` | docs/PLAN.md | — |
+
+Extra commits: `docs(plan): add warehouse re-seed flag and README lessons to Day 6-7` and `refactor(schemas): move domain enums from models to schemas` (so orchestrators and DTOs never import the DB layer).
+Notes: added `langgraph` and `langgraph-checkpoint-sqlite` (in the planned stack). Checkpoints use their own SQLite file (`CHECKPOINT_DATABASE_URL`). Routing and state helpers live in `run_graph_routes.py` / `run_state_helpers.py`, keeping the orchestrator near 300 lines. New settings `MAX_STEPS` (6) and `MAX_STEP_RETRIES` (1).
+Real end-to-end check (Groq `gpt-oss-120b` + real MCP servers, GitHub dry-run, operator role): planned 2 steps, got the top 3 causes (payment_timeout 14, inventory_unavailable 9, card_declined 6), paused at `github.create_issue`, and after approval created the issue and wrote a correct report. Total 6,151 tokens, 6.2 s LLM time, **$0.00157** per run.
 
 The orchestrator imports only agents, policies, schemas and the `CheckpointRepository` saver (injected). It has no DB sessions and no direct LLM or tool calls.
 **Run / test:** `uv run pytest tests/unit/orchestrators tests/integration/test_orchestrator_resume.py -q` + the green check.
