@@ -164,6 +164,7 @@ class AgentRunOrchestrator:
             RunStepStatus.SUCCEEDED,
             agent="planner",
             output={"steps": steps},
+            usage=output.usage,
         )
         return {"steps": steps, "current": 0, "attempt": 0}
 
@@ -197,6 +198,7 @@ class AgentRunOrchestrator:
             tool_name=call.tool,
             tool_arguments=call.arguments,
             output={"reasoning": selection.reasoning},
+            usage=selection.usage,
         )
         return {"pending_call": call.model_dump()}
 
@@ -273,6 +275,7 @@ class AgentRunOrchestrator:
             agent="step_reviewer",
             tool_name=call.tool,
             output={"ok": review.ok, "feedback": review.feedback},
+            usage=review.usage,
         )
         outcome: StepOutcome = "succeeded" if review.ok else "failed"
         update: dict[str, Any] = {
@@ -303,6 +306,7 @@ class AgentRunOrchestrator:
             RunStepStatus.SUCCEEDED,
             agent="reporter",
             output={"report": output.report},
+            usage=output.usage,
         )
         return {"report": output.report}
 

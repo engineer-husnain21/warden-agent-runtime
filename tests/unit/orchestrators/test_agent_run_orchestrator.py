@@ -199,3 +199,26 @@ async def test_resume_when_rejected_skips_tool_and_continues() -> None:
     assert kinds(events) == [("approval", "denied"), ("report", "succeeded")]
     assert tools.calls == []
     assert "Rejected by ada: duplicate" in llm.calls[-1][1].content
+
+
+async def test_stream_when_llm_used_events_carry_usage() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Count failed orders"),
+            select("warehouse.run_query", sql="SELECT COUNT(*) FROM orders"),
+            review(True),
+            "## Summary\nDone.",
+        ]
+    )
+    tools = FakeToolClient(results={"warehouse.run_query": {"rows": [{"n": 35}]}})
+
+    events = await collect(build_orchestrator(llm, tools).stream("run-8", TASK, Role.ADMIN, TOOLS))
+
+    by_kind = {event.kind.value: event for event in events}
+    for kind in ("plan", "tool_selection", "review", "report"):
+        assert len(by_kind[kind].usage) == 1
+        assert by_kind[kind].input_tokens > 0
+        assert by_kind[kind].output_tokens > 0
+        assert by_kind[kind].latency_ms == 1.0
+    assert by_kind["tool_call"].usage == []
+    assert by_kind["permission_check"].cost_usd == 0.0
