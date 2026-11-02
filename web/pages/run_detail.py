@@ -3,6 +3,7 @@
 import streamlit as st
 
 from web.console_state import get_api_client, render_sidebar
+from web.trace_format import decision_label
 from web.warden_api_error import WardenApiError
 
 st.set_page_config(page_title="Run detail · Warden", layout="wide")
@@ -55,7 +56,7 @@ st.dataframe(
             "status": step["status"],
             "agent": step["agent"],
             "tool": step["tool_name"],
-            "decision": step["policy_decision"],
+            "decision": decision_label(step),
             "tokens": step["input_tokens"] + step["output_tokens"],
             "latency ms": round(step["latency_ms"]),
             "cost $": round(step["cost_usd"], 6),
