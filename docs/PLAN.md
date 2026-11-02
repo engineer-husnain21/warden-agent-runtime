@@ -6,7 +6,7 @@
 - [x] Day 3 — MCP servers + ToolClient
 - [x] Day 4 — Policies + agents
 - [x] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
-- [ ] Day 6 — Services, routers, Streamlit console
+- [x] Day 6 — Services, routers, Streamlit console
 - [ ] Day 7 — Evals + CI gate, README, ADRs, demo, final review
 
 ## Rules that apply every day
@@ -211,6 +211,22 @@ The orchestrator imports only agents, policies, schemas and the `CheckpointRepos
 | 12 | `feat(web): add run trace and metrics view` | web/pages/run_detail.py | Streamlit `AppTest`: `test_run_detail_when_loaded_shows_steps_table` |
 | 13 | `feat(web): add approvals inbox` | web/pages/approvals.py | `AppTest`: `test_approvals_when_approve_clicked_calls_api` |
 | 14 | `docs(plan): mark Day 6 complete` | docs/PLAN.md | — |
+
+Extra commit: `fix(prompts): omit the Not done report section when every step succeeded` (the reporter now gets a `Steps not done: N` count).
+Notes:
+- Added `streamlit` (the planned console).
+- DTOs are one class per file (`create_agent_run_request.py`, `agent_run_response.py`, ...). Services open their own sessions via the session factory and return DTOs.
+- `AgentRunService.submit_run` runs in a background task; `drain()` waits for background runs (tests).
+- `ApprovalService` resumes the run through `AgentRunService`.
+- Startup resume uses `AgentRunOrchestrator.has_checkpoint` (continue vs. start fresh).
+- The 6b test is `test_build_store_when_seed_on_startup_reseeds_before_serving`.
+- The full-flow integration test uses fake LLM and fake tools (MCP is covered by Day 3 integration tests).
+- Console: `web/app.py` (runs + new task), `web/pages/run_detail.py` (status, report, metrics, trace), `web/pages/approvals.py`. The console reads `WARDEN_CONSOLE_API_URL` / `WARDEN_CONSOLE_API_KEY`.
+
+Live end-to-end check (real server, Groq `gpt-oss-120b`, real MCP servers, GitHub dry-run, headline task as operator):
+- `202` → `awaiting_approval` on `github.create_issue`; an operator's approve attempt got `403`; the admin approve → `completed`.
+- 12-step trace; audit `run_created → tool_call_allowed → tool_call_succeeded → approval_requested → approval_granted (ada) → tool_call_succeeded → run_completed`.
+- **6 LLM calls, 6,126 tokens, 6.2 s LLM latency, $0.00159.** The report has no "Not done" section.
 
 **Run / test:** terminal 1 `uv run uvicorn app.main:app --no-access-log` ; terminal 2 `uv run streamlit run web/app.py` ;
 `curl.exe -X POST http://127.0.0.1:8000/api/v1/agent-runs -H "X-API-Key: operator-dev-key" -H "Content-Type: application/json" -d "{\"task\":\"Find orders that failed in the last 24 hours and open a GitHub issue for the top 3 causes\"}"` + the green check.
