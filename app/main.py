@@ -15,7 +15,7 @@ from app.core.logging import configure_logging
 from app.middlewares.api_key_auth_middleware import ApiKeyAuthMiddleware
 from app.middlewares.error_handler_middleware import ErrorHandlerMiddleware
 from app.middlewares.request_id_middleware import RequestIdMiddleware
-from app.routers import agent_run_router, health_router
+from app.routers import agent_run_router, approval_router, health_router
 
 API_PREFIX = "/api/v1"
 
@@ -55,6 +55,7 @@ def create_app() -> FastAPI:
 
     app.include_router(health_router.router, prefix=API_PREFIX)
     app.include_router(agent_run_router.router, prefix=API_PREFIX)
+    app.include_router(approval_router.router, prefix=API_PREFIX)
     return app
 
 

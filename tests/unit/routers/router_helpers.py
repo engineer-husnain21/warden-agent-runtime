@@ -1,6 +1,6 @@
 """A small app with the real middlewares, the given routers and service overrides."""
 
-from collections.abc import Callable
+from collections.abc import Mapping
 from typing import Any
 
 from fastapi import APIRouter, FastAPI
@@ -18,9 +18,8 @@ API_KEYS = {
 }
 
 
-def build_client(
-    routers: list[APIRouter], overrides: dict[Callable[..., Any], Callable[..., Any]], key: str
-) -> AsyncClient:
+def build_client(routers: list[APIRouter], overrides: Mapping[Any, Any], key: str) -> AsyncClient:
+    """`overrides` maps a dependency function (e.g. get_approval_service) to a factory."""
     app = FastAPI()
     app.add_middleware(ApiKeyAuthMiddleware, api_keys=API_KEYS, exempt_paths=[])
     app.add_middleware(ErrorHandlerMiddleware)
