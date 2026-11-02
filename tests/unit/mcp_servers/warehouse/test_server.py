@@ -6,7 +6,7 @@ from mcp import Client
 from mcp.server.mcpserver import MCPServer
 
 from mcp_servers.warehouse.seed import seed_warehouse
-from mcp_servers.warehouse.server import create_server
+from mcp_servers.warehouse.server import create_server, describe_schema
 from mcp_servers.warehouse.warehouse_store import WarehouseStore
 
 ORDERS_CSV = Path(__file__).resolve().parents[4] / "data" / "orders.csv"
@@ -24,6 +24,22 @@ async def test_list_tools_when_server_created_exposes_read_tools(server: MCPServ
         tools = await client.list_tools()
 
     assert {tool.name for tool in tools.tools} == {"list_tables", "describe_table", "run_query"}
+
+
+async def test_run_query_description_when_seeded_lists_real_columns(server: MCPServer) -> None:
+    async with Client(server) as client:
+        tools = await client.list_tools()
+
+    run_query = next(tool for tool in tools.tools if tool.name == "run_query")
+    assert run_query.description is not None
+    assert "- orders(order_id INTEGER, customer_id TEXT" in run_query.description
+    assert "failure_reason TEXT" in run_query.description
+
+
+def test_describe_schema_when_database_missing_falls_back(tmp_path: Path) -> None:
+    text = describe_schema(WarehouseStore(tmp_path / "missing.db"))
+
+    assert "not seeded" in text
 
 
 async def test_list_tables_when_called_returns_orders(server: MCPServer) -> None:
