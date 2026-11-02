@@ -44,6 +44,17 @@ async def test_run_when_steps_given_returns_markdown_report(
     assert '"failures": 14' in user_message
     assert "2. Open an issue for the top cause [rejected]" in user_message
     assert "note: Rejected by ada: duplicate of #12" in user_message
+    assert "Steps not done: 1" in user_message
+
+
+async def test_run_when_every_step_succeeded_tells_model_nothing_was_skipped(
+    prompt_loader: FilePromptLoader,
+) -> None:
+    llm = FakeLlmClient(["## Summary\nAll done."])
+
+    await ReporterAgent(llm, prompt_loader).run(ReporterInput(task="t", steps=STEPS[:1]))
+
+    assert "Steps not done: 0" in llm.calls[0][1].content
 
 
 async def test_run_when_reply_blank_raises_agent_output_error(

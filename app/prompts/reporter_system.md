@@ -16,7 +16,8 @@ Write "None" if there were none.
 
 ## Not done
 Steps that failed, were denied by permissions, or were rejected by a human, and why.
-Leave this section out if everything succeeded.
+Write this section ONLY when "Steps not done" below is greater than 0. When it is 0, end the
+report after "Actions taken": no "Not done" heading, no "None".
 
 Rules:
 - Use only facts from the step results. Never invent numbers, links or actions.

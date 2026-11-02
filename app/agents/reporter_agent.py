@@ -12,8 +12,12 @@ class ReporterAgent(BaseAgent[ReporterInput, ReporterOutput]):
     name = "reporter"
 
     async def run(self, input: ReporterInput) -> ReporterOutput:
+        not_done = sum(1 for step in input.steps if step.outcome != "succeeded")
         messages = await self._build_messages(
-            "reporter", task=input.task, steps=_format_steps(input.steps)
+            "reporter",
+            task=input.task,
+            steps=_format_steps(input.steps),
+            not_done_count=str(not_done),
         )
         report, usage = await self._complete_text(messages)
         if not report:
