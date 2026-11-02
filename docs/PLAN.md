@@ -4,7 +4,7 @@
 - [x] Day 1 — Setup (Day 0) + foundation: config, logging, exceptions, DB, middlewares, CI
 - [x] Day 2 — Data layer, LLM clients, auth
 - [x] Day 3 — MCP servers + ToolClient
-- [ ] Day 4 — Policies + agents
+- [x] Day 4 — Policies + agents
 - [ ] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
 - [ ] Day 6 — Services, routers, Streamlit console
 - [ ] Day 7 — Evals + CI gate, README, ADRs, demo, final review
@@ -150,8 +150,11 @@ Notes: uses `mcp` 2.x, where FastMCP is renamed `MCPServer`. Server internals fo
 | 9 | `feat(agents): repair malformed LLM JSON once before failing` | app/agents/base_agent.py helper `_parse_output` (protected, no new public method) | `test_run_when_json_invalid_twice_raises_agent_output_error` |
 | 10 | `docs(plan): mark Day 4 complete` | docs/PLAN.md | — |
 
+Extra commits: `feat(mcp-warehouse): list real table schemas in run_query description` and `fix(prompts): forbid guessed column names in planner and tool selector`. A real-Groq check showed the planner guessing a `cause` column; after the fix it uses `failure_reason`.
+Notes: `BaseAgent` keeps the section 6 template and adds protected helpers (`_build_messages`, `_complete_json` with optional `check`, `_complete_text`). Each agent has `<agent>_system.md` + `<agent>_user.md` prompts (`$placeholders`), plus a shared `json_repair_user.md`. All outputs extend `BaseAgentOutput` (`usage: list[LlmUsage]`) so Day 5 can attach cost per step. `StepReviewerAgent` skips the LLM when the tool call itself failed. `evals/` gets its CLAUDE.md rows on Day 7, when the folder is created (section 11, step 8).
+
 **Run / test:** `uv run pytest tests/unit/policies tests/unit/agents -q` + the green check.
-**Done when:** every agent has a passing test with `FakeLlmClient`; the policy matrix covers all 3 roles × all tools; CLAUDE.md tables list `policies/`, `mcp_servers/`, `evals/`.
+**Done when:** every agent has a passing test with `FakeLlmClient`; the policy matrix covers all 3 roles × all tools; CLAUDE.md tables list `policies/` and `mcp_servers/`.
 **Risks → fallback:** LLM JSON adherence → use the provider JSON mode + Pydantic schema in the prompt; repair-once loop (commit 9).
 
 ---
