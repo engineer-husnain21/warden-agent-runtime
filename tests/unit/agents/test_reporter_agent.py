@@ -1,6 +1,7 @@
 import pytest
 
 from app.agents.reporter_agent import ReporterAgent
+from app.core.dependencies import PROMPTS_DIR
 from app.core.exceptions import AgentOutputError
 from app.core.file_prompt_loader import FilePromptLoader
 from app.schemas.agents.reporter_input import ReporterInput
@@ -64,3 +65,61 @@ async def test_run_when_reply_blank_raises_agent_output_error(
         await ReporterAgent(FakeLlmClient(["   "]), prompt_loader).run(
             ReporterInput(task="t", steps=[])
         )
+
+
+DRY_RUN_STEP = StepRecord(
+    description="Open an issue for the top causes",
+    outcome="succeeded",
+    tool="github.create_issue",
+    result=ToolResult(
+        tool="github.create_issue",
+        ok=True,
+        content={"issue": {"number": 1000, "url": None, "dry_run": True}},
+    ),
+)
+
+
+async def test_run_when_issue_is_dry_run_removes_links_to_it(
+    prompt_loader: FilePromptLoader,
+) -> None:
+    reply = (
+        "## Actions taken\n"
+        "- [Issue #1000](https://github.com/octo/warden-sandbox/issues/1000)\n"
+        "- Also see https://github.com/octo/warden-sandbox/issues/1000\n"
+        "- Older issue https://github.com/octo/warden-sandbox/issues/12 stays linked"
+    )
+    llm = FakeLlmClient([reply])
+
+    output = await ReporterAgent(llm, prompt_loader).run(
+        ReporterInput(task="t", steps=[DRY_RUN_STEP])
+    )
+
+    assert "issues/1000" not in output.report
+    assert "- Issue #1000 (dry-run, not created)" in output.report
+    assert "- Also see (dry-run, not created)" in output.report
+    assert "https://github.com/octo/warden-sandbox/issues/12" in output.report
+
+
+async def test_run_when_issue_is_live_keeps_its_link(prompt_loader: FilePromptLoader) -> None:
+    live_step = DRY_RUN_STEP.model_copy(
+        update={
+            "result": ToolResult(
+                tool="github.create_issue",
+                ok=True,
+                content={"issue": {"number": 7, "url": "https://github.com/o/r/issues/7"}},
+            )
+        }
+    )
+    reply = "- [Issue #7](https://github.com/o/r/issues/7)"
+
+    output = await ReporterAgent(FakeLlmClient([reply]), prompt_loader).run(
+        ReporterInput(task="t", steps=[live_step])
+    )
+
+    assert output.report == reply
+
+
+def test_reporter_prompt_when_loaded_forbids_dry_run_links() -> None:
+    prompt = (PROMPTS_DIR / "reporter_system.md").read_text(encoding="utf-8")
+
+    assert "(dry-run, not created)" in prompt
