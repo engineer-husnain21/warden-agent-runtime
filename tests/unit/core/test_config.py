@@ -56,5 +56,12 @@ def test_settings_when_api_keys_json_set_parses_callers(monkeypatch: pytest.Monk
     assert settings.api_keys["k1"].role.value == "admin"
 
 
+def test_settings_when_env_example_loaded_matches_default_permission_rules() -> None:
+    example = Settings(_env_file=".env.example")  # type: ignore[call-arg]
+    defaults = Settings(_env_file=None)  # type: ignore[call-arg]
+
+    assert example.tool_permission_rules == defaults.tool_permission_rules
+
+
 def test_get_settings_when_called_twice_returns_same_instance() -> None:
     assert get_settings() is get_settings()

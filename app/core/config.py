@@ -5,6 +5,8 @@ from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.schemas.caller import Caller
+from app.schemas.policy_decision import PolicyDecision
+from app.schemas.role import Role
 
 LogLevel = Literal["DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"]
 LlmProvider = Literal["groq", "gemini"]
@@ -22,6 +24,22 @@ class Settings(BaseSettings):
     # Auth: API key -> caller identity and role. Paths listed here need no key.
     api_keys: dict[str, Caller] = {}
     auth_exempt_paths: list[str] = ["/api/v1/health", "/docs", "/openapi.json"]
+
+    # Permissions: role -> tool pattern (`server.tool`, `server.*` or `*`) -> decision.
+    # Anything not matched is denied. Only admins approve or reject.
+    tool_permission_rules: dict[Role, dict[str, PolicyDecision]] = {
+        Role.VIEWER: {
+            "warehouse.*": PolicyDecision.ALLOW,
+            "github.list_issues": PolicyDecision.ALLOW,
+            "notifier.list_outbox": PolicyDecision.ALLOW,
+        },
+        Role.OPERATOR: {
+            "github.create_issue": PolicyDecision.NEEDS_APPROVAL,
+            "notifier.send_notification": PolicyDecision.NEEDS_APPROVAL,
+            "*": PolicyDecision.ALLOW,
+        },
+        Role.ADMIN: {"*": PolicyDecision.ALLOW},
+    }
 
     # LLM: switching provider needs only LLM_PROVIDER (plus that provider's key).
     llm_provider: LlmProvider = "groq"
