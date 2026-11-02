@@ -12,8 +12,8 @@ Every request follows one path, top to bottom:
 
 ```
 main.py → middlewares → routers → services → orchestrators → agents → clients (LLM, search, external APIs)
-                                     ↓                                    ↓ (MCP over stdio)
-                               repositories → db                   mcp_servers/<name>/ (separate processes)
+                                     ↓              ↓                     ↓ (MCP over stdio)
+                               repositories → db  policies (pure)  mcp_servers/<name>/ (separate processes)
 ```
 
 ---
@@ -30,6 +30,7 @@ project-root/
     schemas/             # Request/response DTOs (Pydantic)
     services/            # Business logic
     orchestrators/       # Runs the flow between agents
+    policies/            # Permission decisions (pure logic, no I/O)
     agents/              # base_agent.py + one class per agent
     prompts/             # Prompts as .md files
     clients/             # LLM, search and external API clients
@@ -61,6 +62,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `routers/` | Receive request, validate with schema, call one service, return response | Logic, DB calls, LLM calls |
 | `services/` | Business rules, decide what happens, call orchestrators and repositories | Talk to HTTP or LLM APIs directly |
 | `orchestrators/` | Decide which agent runs, in what order, and pass data between them | DB calls, direct LLM calls |
+| `policies/` | Decide allow / deny / needs_approval from rules in `core/config.py`; called by orchestrators | I/O of any kind (DB, network, files), call agents or clients |
 | `agents/` | One focused AI task each (plan, research, write, review) | Touch the DB, call other agents directly |
 | `clients/` | The only place that talks to outside APIs (LLM, search, email, etc.) | Business logic |
 | `repositories/` | All reads and writes to DB or files | Business logic |
@@ -109,10 +111,11 @@ Every folder inside `app/` has an `__init__.py`.
 | Test files | `test_<file>.py` | `test_planner_agent.py` |
 | Test functions | `test_<what>_when_<condition>_<expected>` | `test_run_when_no_sources_raises_error` |
 | Env vars | UPPER_SNAKE | `LLM_PROVIDER`, `GROQ_API_KEY` |
+| Policies | `<subject>_policy.py` holding `<Subject>Policy` | `tool_permission_policy.py` |
 | MCP servers | `mcp_servers/<name>/server.py` with `create_server()`; settings class `<Name>Settings` | `mcp_servers/warehouse/server.py` |
 | MCP tool names | snake_case verb, addressed by the app as `<server>.<tool>` | `warehouse.run_query` |
 
-**Suffix list:** `Service`, `Orchestrator`, `Agent`, `Client`, `Repository`, `Request`, `Response`, `Input`, `Output`, `Middleware`, `Error`.
+**Suffix list:** `Service`, `Orchestrator`, `Agent`, `Client`, `Repository`, `Policy`, `Request`, `Response`, `Input`, `Output`, `Middleware`, `Error`.
 
 ---
 

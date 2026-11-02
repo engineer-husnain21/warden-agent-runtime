@@ -51,14 +51,14 @@ class WarehouseStore:
         return self._fetch(statement, read_only=True)
 
     def _fetch(self, sql: str, read_only: bool = False) -> tuple[list[dict[str, Any]], bool]:
-        with closing(sqlite3.connect(self._uri, uri=True)) as connection:
-            connection.row_factory = sqlite3.Row
-            if read_only:
-                connection.set_authorizer(_allow_reads_only)
-            try:
+        try:
+            with closing(sqlite3.connect(self._uri, uri=True)) as connection:
+                connection.row_factory = sqlite3.Row
+                if read_only:
+                    connection.set_authorizer(_allow_reads_only)
                 rows = connection.execute(sql).fetchmany(self._max_rows + 1)
-            except sqlite3.Error as error:
-                raise ToolError(f"Query failed: {error}") from error
+        except sqlite3.Error as error:
+            raise ToolError(f"Query failed: {error}") from error
         truncated = len(rows) > self._max_rows
         return [dict(row) for row in rows[: self._max_rows]], truncated
 
