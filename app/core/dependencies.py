@@ -7,6 +7,7 @@ from functools import lru_cache
 from pathlib import Path
 
 import httpx
+from fastapi import Request
 from mcp import StdioServerParameters
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
@@ -22,13 +23,14 @@ from app.clients.llm_client import LlmClient
 from app.clients.mcp_tool_client import McpToolClient
 from app.clients.tool_client import ToolClient
 from app.core.config import get_settings
-from app.core.exceptions import ConfigurationError
+from app.core.exceptions import AuthenticationError, ConfigurationError
 from app.core.file_prompt_loader import FilePromptLoader
 from app.core.prompt_loader import PromptLoader
 from app.db.session import build_engine, build_session_factory, get_session
 from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
 from app.policies.tool_permission_policy import ToolPermissionPolicy
 from app.repositories.checkpoint_repository import CheckpointRepository
+from app.schemas.caller import Caller
 from app.services.agent_run_service import AgentRunService
 from app.services.approval_service import ApprovalService
 from app.services.audit_service import AuditService
@@ -140,6 +142,14 @@ def get_agent_run_service() -> AgentRunService:
 @lru_cache
 def get_approval_service() -> ApprovalService:
     return ApprovalService(get_session_factory(), get_agent_run_service())
+
+
+def get_current_caller(request: Request) -> Caller:
+    """The caller ApiKeyAuthMiddleware resolved from the X-API-Key header."""
+    caller = getattr(request.state, "caller", None)
+    if not isinstance(caller, Caller):
+        raise AuthenticationError("Missing or invalid API key")
+    return caller
 
 
 def _require_key(secret: SecretStr | None, env_name: str) -> str:
