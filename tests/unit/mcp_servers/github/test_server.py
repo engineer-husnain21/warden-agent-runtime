@@ -13,7 +13,7 @@ def server() -> MCPServer:
     return create_server(DryRunGitHubApi(REPO), REPO)
 
 
-async def test_create_issue_when_dry_run_returns_fake_issue(server: MCPServer) -> None:
+async def test_create_issue_when_dry_run_returns_issue_without_link(server: MCPServer) -> None:
     async with Client(server) as client:
         result = await client.call_tool(
             "create_issue", {"title": "Payment timeouts", "body": "Top cause", "labels": ["bug"]}
@@ -24,7 +24,9 @@ async def test_create_issue_when_dry_run_returns_fake_issue(server: MCPServer) -
     issue = result.structured_content["issue"]
     assert issue["dry_run"] is True
     assert issue["title"] == "Payment timeouts"
-    assert issue["url"] == f"https://github.com/{REPO}/issues/1000"
+    assert issue["number"] == 1000
+    assert issue["url"] is None
+    assert issue["note"] == f"dry-run: not created on GitHub ({REPO})"
 
 
 async def test_list_issues_when_issues_created_returns_newest_first(server: MCPServer) -> None:
