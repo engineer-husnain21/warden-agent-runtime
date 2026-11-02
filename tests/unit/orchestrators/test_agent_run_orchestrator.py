@@ -1,3 +1,5 @@
+from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
+from app.schemas.approval_decision import ApprovalDecision
 from app.schemas.role import Role
 from tests.fakes.fake_llm_client import FakeLlmClient
 from tests.fakes.fake_tool_client import FakeToolClient
@@ -143,3 +145,57 @@ async def test_stream_when_operator_creates_issue_pauses_awaiting_approval() -> 
     assert paused.tool_arguments == {"title": "Timeouts"}
     assert paused.step_index == 0
     assert tools.calls == []
+
+
+async def _paused_run(llm: FakeLlmClient, tools: FakeToolClient) -> AgentRunOrchestrator:
+    orchestrator = build_orchestrator(llm, tools)
+    await collect(orchestrator.stream("run-7", TASK, Role.OPERATOR, TOOLS))
+    return orchestrator
+
+
+async def test_resume_when_approved_executes_tool_and_reports() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Open an issue for payment timeouts"),
+            select("github.create_issue", title="Timeouts"),
+            review(True),
+            "## Summary\nOpened issue #1.",
+        ]
+    )
+    tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
+    orchestrator = await _paused_run(llm, tools)
+
+    events = await collect(
+        orchestrator.resume("run-7", ApprovalDecision(approved=True, decided_by="ada"))
+    )
+
+    assert kinds(events) == [
+        ("approval", "succeeded"),
+        ("tool_call", "succeeded"),
+        ("review", "succeeded"),
+        ("report", "succeeded"),
+    ]
+    assert events[0].output == {"approved": True, "decided_by": "ada", "reason": None}
+    assert len(tools.calls) == 1
+
+
+async def test_resume_when_rejected_skips_tool_and_continues() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Open an issue for payment timeouts"),
+            select("github.create_issue", title="Timeouts"),
+            "## Summary\nNo issue was opened: rejected.",
+        ]
+    )
+    tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
+    orchestrator = await _paused_run(llm, tools)
+
+    events = await collect(
+        orchestrator.resume(
+            "run-7", ApprovalDecision(approved=False, decided_by="ada", reason="duplicate")
+        )
+    )
+
+    assert kinds(events) == [("approval", "denied"), ("report", "succeeded")]
+    assert tools.calls == []
+    assert "Rejected by ada: duplicate" in llm.calls[-1][1].content

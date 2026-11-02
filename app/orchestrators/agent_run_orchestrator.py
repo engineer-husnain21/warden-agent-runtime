@@ -95,6 +95,20 @@ class AgentRunOrchestrator:
         async for event in self._drive(run_id, initial):
             yield event
 
+    async def resume(
+        self, run_id: str, decision: ApprovalDecision | None = None
+    ) -> AsyncIterator[StepEvent]:
+        """Continue a run from its last checkpoint.
+
+        With a decision: answer the pending approval. Without one: pick up a run that was
+        interrupted by a crash or restart; finished nodes are not run again.
+        """
+        graph_input: GraphInput = (
+            Command(resume=decision.model_dump()) if decision is not None else None
+        )
+        async for event in self._drive(run_id, graph_input):
+            yield event
+
     async def _drive(self, run_id: str, graph_input: GraphInput) -> AsyncIterator[StepEvent]:
         config: Any = {"configurable": {"thread_id": run_id}}
         async for mode, chunk in self._graph.astream(
