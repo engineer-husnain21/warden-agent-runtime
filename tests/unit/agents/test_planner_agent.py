@@ -51,7 +51,7 @@ async def test_run_when_too_many_steps_raises_agent_output_error(
     prompt_loader: FilePromptLoader, tool_specs: list[ToolSpec]
 ) -> None:
     reply = {"steps": [{"description": f"step {i}"} for i in range(9)]}
-    llm = FakeLlmClient([json.dumps(reply)])
+    llm = FakeLlmClient([json.dumps(reply), json.dumps(reply)])
 
     with pytest.raises(AgentOutputError):
         await PlannerAgent(llm, prompt_loader).run(PlannerInput(task=TASK, tools=tool_specs))

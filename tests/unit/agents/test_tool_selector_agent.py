@@ -48,10 +48,28 @@ async def test_run_when_llm_picks_known_tool_returns_call(
 async def test_run_when_tool_unknown_raises_agent_output_error(
     prompt_loader: FilePromptLoader, tool_specs: list[ToolSpec]
 ) -> None:
-    llm = FakeLlmClient([json.dumps({"tool": "shell.run", "arguments": {"cmd": "ls"}})])
+    bad = json.dumps({"tool": "shell.run", "arguments": {"cmd": "ls"}})
+    llm = FakeLlmClient([bad, bad])
 
     with pytest.raises(AgentOutputError, match="unknown tool"):
         await ToolSelectorAgent(llm, prompt_loader).run(_input(tool_specs))
+
+
+async def test_run_when_unknown_tool_then_fixed_returns_repaired_call(
+    prompt_loader: FilePromptLoader, tool_specs: list[ToolSpec]
+) -> None:
+    llm = FakeLlmClient(
+        [
+            json.dumps({"tool": "warehouse.query", "arguments": {"sql": "SELECT 1"}}),
+            json.dumps({"tool": "warehouse.run_query", "arguments": {"sql": "SELECT 1"}}),
+        ]
+    )
+
+    output = await ToolSelectorAgent(llm, prompt_loader).run(_input(tool_specs))
+
+    assert output.tool == "warehouse.run_query"
+    assert len(output.usage) == 2
+    assert "unknown tool: warehouse.query" in llm.calls[1][-1].content
 
 
 async def test_run_when_required_argument_missing_raises_agent_output_error(
@@ -61,7 +79,8 @@ async def test_run_when_required_argument_missing_raises_agent_output_error(
         spec.model_copy(update={"input_schema": {**spec.input_schema, "required": ["sql"]}})
         for spec in tool_specs
     ]
-    llm = FakeLlmClient([json.dumps({"tool": "warehouse.run_query", "arguments": {}})])
+    bad = json.dumps({"tool": "warehouse.run_query", "arguments": {}})
+    llm = FakeLlmClient([bad, bad])
 
     with pytest.raises(AgentOutputError, match="sql"):
         await ToolSelectorAgent(llm, prompt_loader).run(_input(tools))

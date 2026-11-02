@@ -21,8 +21,11 @@ class ToolSelectorAgent(BaseAgent[ToolSelectorInput, ToolSelectorOutput]):
             feedback=input.feedback or "(none)",
             tools=_format_tools_with_schemas(input.tools),
         )
-        selection, usage = await self._complete_json(messages, ToolSelectorOutput)
-        self._check_selection(selection, input.tools)
+        selection, usage = await self._complete_json(
+            messages,
+            ToolSelectorOutput,
+            check=lambda reply: self._check_selection(reply, input.tools),
+        )
         return selection.model_copy(update={"usage": usage})
 
     def _check_selection(self, selection: ToolSelectorOutput, tools: list[ToolSpec]) -> None:

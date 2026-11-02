@@ -1,4 +1,5 @@
 from abc import ABC, abstractmethod
+from collections.abc import Callable
 from string import Template
 from typing import Generic, TypeVar
 
@@ -36,18 +37,45 @@ class BaseAgent(ABC, Generic[TInput, TOutput]):  # noqa: UP046  (template from C
         ]
 
     async def _complete_json(
-        self, messages: list[LlmMessage], reply_type: type[TReply]
+        self,
+        messages: list[LlmMessage],
+        reply_type: type[TReply],
+        check: Callable[[TReply], None] | None = None,
     ) -> tuple[TReply, list[LlmUsage]]:
-        """Ask for JSON and validate it into `reply_type`; bad replies raise AgentOutputError."""
+        """Ask for JSON, validate it into `reply_type` and run `check` (which may raise
+        AgentOutputError). A bad reply gets one repair attempt with the error fed back;
+        a second bad reply raises AgentOutputError."""
         response = await self._llm_client.complete(messages, json_mode=True)
+        usage = [response.usage]
         try:
-            reply = reply_type.model_validate_json(_strip_code_fence(response.text))
+            return self._parse_reply(response.text, reply_type, check), usage
+        except AgentOutputError as error:
+            repair_prompt = await self._prompt_loader.load("json_repair_user")
+            repair_messages = [
+                *messages,
+                LlmMessage(role="assistant", content=response.text),
+                LlmMessage(
+                    role="user",
+                    content=Template(repair_prompt).substitute(error=error.message),
+                ),
+            ]
+        retry = await self._llm_client.complete(repair_messages, json_mode=True)
+        usage.append(retry.usage)
+        return self._parse_reply(retry.text, reply_type, check), usage
+
+    def _parse_reply(
+        self, text: str, reply_type: type[TReply], check: Callable[[TReply], None] | None
+    ) -> TReply:
+        try:
+            reply = reply_type.model_validate_json(_strip_code_fence(text))
         except ValidationError as error:
             raise AgentOutputError(
-                f"{self.name} returned output that does not match its schema",
+                f"{self.name} returned output that does not match its schema: {str(error)[:300]}",
                 details={"agent": self.name, "error": str(error)[:500]},
             ) from error
-        return reply, [response.usage]
+        if check is not None:
+            check(reply)
+        return reply
 
     async def _complete_text(self, messages: list[LlmMessage]) -> tuple[str, LlmUsage]:
         response = await self._llm_client.complete(messages)
