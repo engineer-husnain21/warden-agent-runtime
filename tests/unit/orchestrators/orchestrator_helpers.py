@@ -42,6 +42,8 @@ def build_orchestrator(
     llm: FakeLlmClient,
     tools: FakeToolClient | None = None,
     checkpointer: BaseCheckpointSaver[str] | None = None,
+    max_steps: int = 8,
+    max_step_retries: int = 1,
 ) -> AgentRunOrchestrator:
     prompts = FilePromptLoader(PROMPTS_DIR)
     return AgentRunOrchestrator(
@@ -52,6 +54,8 @@ def build_orchestrator(
         reporter=ReporterAgent(llm, prompts),
         policy=ToolPermissionPolicy(Settings(_env_file=None).tool_permission_rules),  # type: ignore[call-arg]
         checkpointer=checkpointer or InMemorySaver(),
+        max_steps=max_steps,
+        max_step_retries=max_step_retries,
     )
 
 

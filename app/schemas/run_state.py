@@ -16,6 +16,7 @@ class RunState(TypedDict, total=False):
     steps: list[dict[str, Any]]
     current: int
     attempt: int
+    retrying: bool
     feedback: str | None
     pending_call: dict[str, Any] | None
     policy_decision: str | None

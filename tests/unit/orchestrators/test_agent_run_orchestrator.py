@@ -23,7 +23,7 @@ async def test_stream_when_plan_has_no_steps_yields_report_event() -> None:
     events = await collect(orchestrator.stream("run-1", "Book a flight", Role.OPERATOR, TOOLS))
 
     assert kinds(events) == [("plan", "succeeded"), ("report", "succeeded")]
-    assert events[0].output == {"steps": []}
+    assert events[0].output == {"steps": [], "dropped_steps": 0}
     assert events[1].output == {"report": "## Summary\nNothing could be done."}
     assert all(event.run_id == "run-1" for event in events)
 
@@ -222,3 +222,52 @@ async def test_stream_when_llm_used_events_carry_usage() -> None:
         assert by_kind[kind].latency_ms == 1.0
     assert by_kind["tool_call"].usage == []
     assert by_kind["permission_check"].cost_usd == 0.0
+
+
+async def test_stream_when_review_fails_twice_marks_step_failed() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Count failed orders"),
+            select("warehouse.run_query", sql="SELECT * FROM orders WHERE 0"),
+            review(False, "No rows; filter on status = 'failed'."),
+            select("warehouse.run_query", sql="SELECT * FROM orders WHERE 1 = 0"),
+            review(False, "Still no rows."),
+            "## Summary\nThe step failed.",
+        ]
+    )
+    tools = FakeToolClient(results={"warehouse.run_query": {"rows": []}})
+
+    events = await collect(build_orchestrator(llm, tools).stream("run-9", TASK, Role.ADMIN, TOOLS))
+
+    assert [e.status.value for e in events if e.kind.value == "review"] == ["failed", "failed"]
+    assert len(tools.calls) == 2
+    assert "No rows; filter on status = 'failed'." in llm.calls[3][1].content
+    assert "Count failed orders [failed]" in llm.calls[-1][1].content
+
+
+async def test_stream_when_review_fails_once_then_passes_succeeds() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Count failed orders"),
+            select("warehouse.run_query", sql="SELECT 0"),
+            review(False, "Wrong query."),
+            select("warehouse.run_query", sql="SELECT COUNT(*) FROM orders WHERE status='failed'"),
+            review(True),
+            "## Summary\n35 failed orders.",
+        ]
+    )
+    tools = FakeToolClient(results={"warehouse.run_query": {"rows": [{"n": 35}]}})
+
+    await collect(build_orchestrator(llm, tools).stream("run-10", TASK, Role.ADMIN, TOOLS))
+
+    assert "Count failed orders [succeeded]" in llm.calls[-1][1].content
+
+
+async def test_stream_when_plan_too_long_keeps_first_max_steps() -> None:
+    llm = FakeLlmClient([plan("a", "b", "c"), "x", "y", "z"])
+    orchestrator = build_orchestrator(llm, max_steps=0)
+
+    events = await collect(orchestrator.stream("run-11", TASK, Role.ADMIN, TOOLS))
+
+    assert events[0].output == {"steps": [], "dropped_steps": 3}
+    assert kinds(events)[-1] == ("report", "succeeded")

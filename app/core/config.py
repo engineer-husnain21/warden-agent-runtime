@@ -48,6 +48,10 @@ class Settings(BaseSettings):
     llm_timeout_seconds: float = 60.0
     llm_max_attempts: int = 4
 
+    # Runs: plan length cap and how often a step is retried after a failed review.
+    max_steps: int = 6
+    max_step_retries: int = 1
+
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-120b"
     groq_base_url: str = "https://api.groq.com/openai/v1"

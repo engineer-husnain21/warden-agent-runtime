@@ -6,6 +6,8 @@ from langgraph.config import get_stream_writer
 
 from app.schemas.agents.plan_step import PlanStep
 from app.schemas.agents.step_record import StepOutcome, StepRecord
+from app.schemas.policy_decision import PolicyDecision
+from app.schemas.role import Role
 from app.schemas.run_state import RunState
 from app.schemas.run_step_kind import RunStepKind
 from app.schemas.run_step_status import RunStepStatus
@@ -53,3 +55,49 @@ def record(
         description=step.description, outcome=outcome, tool=tool, result=result, note=note
     )
     return step_record.model_dump()
+
+
+PERMISSION_STATUS = {
+    PolicyDecision.ALLOW: RunStepStatus.SUCCEEDED,
+    PolicyDecision.DENY: RunStepStatus.DENIED,
+    PolicyDecision.NEEDS_APPROVAL: RunStepStatus.AWAITING_APPROVAL,
+}
+
+
+def initial_state(run_id: str, task: str, role: Role, tools: list[ToolSpec]) -> RunState:
+    return {
+        "run_id": run_id,
+        "task": task,
+        "role": role.value,
+        "tools": [tool.model_dump() for tool in tools],
+        "steps": [],
+        "current": 0,
+        "attempt": 0,
+        "records": [],
+        "previous_results": [],
+    }
+
+
+def next_step_update(state: RunState) -> dict[str, Any]:
+    """Move to the next plan step and clear everything that belonged to the current one."""
+    return {
+        "current": state["current"] + 1,
+        "attempt": 0,
+        "retrying": False,
+        "feedback": None,
+        "pending_call": None,
+        "policy_decision": None,
+        "approval": None,
+        "last_result": None,
+    }
+
+
+def approval_request(state: RunState) -> dict[str, Any]:
+    """Payload passed to `interrupt()` and shown to the human who approves."""
+    call = pending_call(state)
+    return {
+        "step_index": state["current"],
+        "step": current_step(state).description,
+        "tool": call.tool,
+        "arguments": call.arguments,
+    }
