@@ -68,6 +68,14 @@ class AgentRunService:
         events = self._orchestrator.stream(run.id, run.task, Role(run.role), tools)
         await self._consume(run, events)
 
+    def resume_in_background(self, run_id: str, decision: ApprovalDecision | None = None) -> None:
+        self._spawn(self.resume_run(run_id, decision))
+
+    async def drain(self) -> None:
+        """Wait until every background run task has finished (tests and shutdown)."""
+        while self._background:
+            await asyncio.gather(*self._background, return_exceptions=True)
+
     async def resume_run(self, run_id: str, decision: ApprovalDecision | None = None) -> None:
         """Continue a paused run with a decision, or a crashed one from its last checkpoint."""
         run = await self._set_status(run_id, AgentRunStatus.RUNNING)
