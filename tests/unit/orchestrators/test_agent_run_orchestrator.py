@@ -117,3 +117,29 @@ async def test_stream_when_admin_creates_issue_executes_it() -> None:
 
     assert ("tool_call", "succeeded") in kinds(events)
     assert len(tools.calls) == 1
+
+
+async def test_stream_when_operator_creates_issue_pauses_awaiting_approval() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Open an issue for payment timeouts"),
+            select("github.create_issue", title="Timeouts"),
+        ]
+    )
+    tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
+
+    events = await collect(
+        build_orchestrator(llm, tools).stream("run-6", TASK, Role.OPERATOR, TOOLS)
+    )
+
+    assert kinds(events) == [
+        ("plan", "succeeded"),
+        ("tool_selection", "succeeded"),
+        ("permission_check", "awaiting_approval"),
+        ("approval", "awaiting_approval"),
+    ]
+    paused = events[-1]
+    assert paused.tool_name == "github.create_issue"
+    assert paused.tool_arguments == {"title": "Timeouts"}
+    assert paused.step_index == 0
+    assert tools.calls == []

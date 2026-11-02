@@ -3,7 +3,7 @@ from typing import Any
 
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
-from langgraph.types import Command
+from langgraph.types import Command, interrupt
 
 from app.agents.base_agent import BaseAgent
 from app.agents.tool_result_text import format_tool_result
@@ -28,6 +28,7 @@ from app.schemas.agents.tool_executor_input import ToolExecutorInput
 from app.schemas.agents.tool_executor_output import ToolExecutorOutput
 from app.schemas.agents.tool_selector_input import ToolSelectorInput
 from app.schemas.agents.tool_selector_output import ToolSelectorOutput
+from app.schemas.approval_decision import ApprovalDecision
 from app.schemas.policy_decision import PolicyDecision
 from app.schemas.role import Role
 from app.schemas.run_state import RunState
@@ -40,6 +41,8 @@ from app.schemas.tool_spec import ToolSpec
 
 GraphInput = RunState | Command[Any] | None
 PREVIOUS_RESULT_CHARS = 1500
+# Key LangGraph uses in "updates" stream chunks when a node called interrupt().
+INTERRUPT_KEY = "__interrupt__"
 _PERMISSION_STATUS = {
     PolicyDecision.ALLOW: RunStepStatus.SUCCEEDED,
     PolicyDecision.DENY: RunStepStatus.DENIED,
@@ -99,6 +102,12 @@ class AgentRunOrchestrator:
         ):
             if mode == "custom":
                 yield StepEvent.model_validate(chunk)
+            elif isinstance(chunk, dict) and INTERRUPT_KEY in chunk:
+                # The graph paused in `await_approval`. Report it from the interrupt payload:
+                # the node itself emits nothing before `interrupt()`, because LangGraph re-runs
+                # it from the start on resume.
+                for paused in chunk[INTERRUPT_KEY]:
+                    yield _awaiting_approval_event(run_id, paused.value)
 
     def _build_graph(self) -> StateGraph[RunState]:
         graph = StateGraph(RunState)
@@ -106,6 +115,7 @@ class AgentRunOrchestrator:
             ("plan", self._plan),
             ("select", self._select),
             ("check_permission", self._check_permission),
+            ("await_approval", self._await_approval),
             ("execute", self._execute),
             ("review", self._review),
             ("next_step", self._next_step),
@@ -118,7 +128,12 @@ class AgentRunOrchestrator:
             "select", _route_after_select, ["check_permission", "next_step"]
         )
         graph.add_conditional_edges(
-            "check_permission", _route_after_permission, ["execute", "next_step"]
+            "check_permission",
+            _route_after_permission,
+            ["execute", "await_approval", "next_step"],
+        )
+        graph.add_conditional_edges(
+            "await_approval", _route_after_approval, ["execute", "next_step"]
         )
         graph.add_edge("execute", "review")
         graph.add_edge("review", "next_step")
@@ -189,6 +204,31 @@ class AgentRunOrchestrator:
             update["records"] = [record(current_step(state), "denied", call.tool, note=note)]
         return update
 
+    async def _await_approval(self, state: RunState) -> dict[str, Any]:
+        step, call = current_step(state), pending_call(state)
+        answer = interrupt(
+            {
+                "step_index": state["current"],
+                "step": step.description,
+                "tool": call.tool,
+                "arguments": call.arguments,
+            }
+        )
+        decision = ApprovalDecision.model_validate(answer)
+        emit(
+            state,
+            RunStepKind.APPROVAL,
+            RunStepStatus.SUCCEEDED if decision.approved else RunStepStatus.DENIED,
+            tool_name=call.tool,
+            tool_arguments=call.arguments,
+            output=decision.model_dump(),
+        )
+        update: dict[str, Any] = {"approval": decision.model_dump()}
+        if not decision.approved:
+            note = f"Rejected by {decision.decided_by}: {decision.reason or 'no reason given'}"
+            update["records"] = [record(step, "rejected", call.tool, note=note)]
+        return update
+
     async def _execute(self, state: RunState) -> dict[str, Any]:
         call = pending_call(state)
         output = await self._tool_executor.run(ToolExecutorInput(call=call))
@@ -236,6 +276,7 @@ class AgentRunOrchestrator:
             "feedback": None,
             "pending_call": None,
             "policy_decision": None,
+            "approval": None,
             "last_result": None,
         }
 
@@ -261,4 +302,27 @@ def _route_after_select(state: RunState) -> str:
 
 
 def _route_after_permission(state: RunState) -> str:
-    return "execute" if state.get("policy_decision") == PolicyDecision.ALLOW else "next_step"
+    decision = state.get("policy_decision")
+    if decision == PolicyDecision.ALLOW:
+        return "execute"
+    if decision == PolicyDecision.NEEDS_APPROVAL:
+        return "await_approval"
+    return "next_step"
+
+
+def _route_after_approval(state: RunState) -> str:
+    approval = state.get("approval") or {}
+    return "execute" if approval.get("approved") else "next_step"
+
+
+def _awaiting_approval_event(run_id: str, payload: dict[str, Any]) -> StepEvent:
+    return StepEvent(
+        run_id=run_id,
+        kind=RunStepKind.APPROVAL,
+        status=RunStepStatus.AWAITING_APPROVAL,
+        step_index=payload["step_index"],
+        tool_name=payload["tool"],
+        tool_arguments=payload["arguments"],
+        output={"step": payload["step"]},
+        policy_decision=PolicyDecision.NEEDS_APPROVAL,
+    )

@@ -19,6 +19,7 @@ class RunState(TypedDict, total=False):
     feedback: str | None
     pending_call: dict[str, Any] | None
     policy_decision: str | None
+    approval: dict[str, Any] | None
     last_result: dict[str, Any] | None
     records: Annotated[list[dict[str, Any]], operator.add]
     previous_results: Annotated[list[str], operator.add]
