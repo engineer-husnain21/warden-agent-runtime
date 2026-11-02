@@ -3,7 +3,7 @@
 import streamlit as st
 
 from web.console_state import get_api_client, render_sidebar
-from web.trace_format import decision_label
+from web.trace_format import expander_title, trace_row
 from web.warden_api_error import WardenApiError
 
 st.set_page_config(page_title="Run detail · Warden", layout="wide")
@@ -49,20 +49,7 @@ else:
 
 st.subheader("Trace")
 st.dataframe(
-    [
-        {
-            "#": step["position"],
-            "kind": step["kind"],
-            "status": step["status"],
-            "agent": step["agent"],
-            "tool": step["tool_name"],
-            "decision": decision_label(step),
-            "tokens": step["input_tokens"] + step["output_tokens"],
-            "latency ms": round(step["latency_ms"]),
-            "cost $": round(step["cost_usd"], 6),
-        }
-        for step in steps
-    ],
+    [trace_row(step) for step in steps],
     hide_index=True,
     width="stretch",
     # Wide enough for "awaiting_approval" / "needs_approval" without cutting them off.
@@ -73,5 +60,5 @@ st.dataframe(
 )
 for step in steps:
     if step["tool_arguments"] or step["output"]:
-        with st.expander(f"#{step['position']} {step['kind']} · {step['tool_name'] or ''}"):
+        with st.expander(expander_title(step)):
             st.json({"arguments": step["tool_arguments"], "output": step["output"]})

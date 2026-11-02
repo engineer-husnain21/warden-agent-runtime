@@ -26,3 +26,14 @@ def test_run_detail_when_api_down_shows_error() -> None:
     page.run()
 
     assert "Could not load runs" in page.error[0].value
+
+
+def test_run_detail_when_cell_empty_shows_dash_not_none() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    table = page.dataframe[0].value
+    assert table["tool"].tolist() == ["—"]
+    assert "None" not in table.astype(str).to_string()
