@@ -13,3 +13,6 @@ class WarehouseSettings(BaseSettings):
     db_path: Path = Path("data/warehouse.db")
     csv_path: Path = Path("data/orders.csv")
     max_rows: int = 200
+    # Rebuild the demo data each time the server starts, so "the last 24 hours" always has
+    # orders in it. Off by default; `.env.example` turns it on for local demos.
+    seed_on_startup: bool = False

@@ -5,6 +5,7 @@ from typing import Any
 from mcp.server.mcpserver import MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
 
+from mcp_servers.warehouse.seed import seed_warehouse
 from mcp_servers.warehouse.warehouse_settings import WarehouseSettings
 from mcp_servers.warehouse.warehouse_store import WarehouseStore
 
@@ -54,9 +55,15 @@ def create_server(store: WarehouseStore) -> MCPServer:
     return server
 
 
+def build_store(settings: WarehouseSettings) -> WarehouseStore:
+    """Re-seed first when WAREHOUSE_SEED_ON_STARTUP is on, then open the store read-only."""
+    if settings.seed_on_startup:
+        seed_warehouse(settings.csv_path, settings.db_path)
+    return WarehouseStore(settings.db_path, settings.max_rows)
+
+
 def main() -> None:
-    settings = WarehouseSettings()
-    create_server(WarehouseStore(settings.db_path, settings.max_rows)).run("stdio")
+    create_server(build_store(WarehouseSettings())).run("stdio")
 
 
 if __name__ == "__main__":

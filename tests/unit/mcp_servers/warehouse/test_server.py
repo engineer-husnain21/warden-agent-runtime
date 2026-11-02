@@ -6,7 +6,8 @@ from mcp import Client
 from mcp.server.mcpserver import MCPServer
 
 from mcp_servers.warehouse.seed import seed_warehouse
-from mcp_servers.warehouse.server import create_server, describe_schema
+from mcp_servers.warehouse.server import build_store, create_server, describe_schema
+from mcp_servers.warehouse.warehouse_settings import WarehouseSettings
 from mcp_servers.warehouse.warehouse_store import WarehouseStore
 
 ORDERS_CSV = Path(__file__).resolve().parents[4] / "data" / "orders.csv"
@@ -73,3 +74,23 @@ async def test_run_query_when_select_returns_rows(server: MCPServer) -> None:
         "inventory_unavailable",
         "card_declined",
     ]
+
+
+def test_build_store_when_seed_on_startup_reseeds_before_serving(tmp_path: Path) -> None:
+    settings = WarehouseSettings(  # type: ignore[call-arg]
+        _env_file=None, db_path=tmp_path / "fresh.db", csv_path=ORDERS_CSV, seed_on_startup=True
+    )
+
+    store = build_store(settings)
+
+    assert store.list_tables() == ["orders"]
+
+
+def test_build_store_when_seed_off_does_not_create_database(tmp_path: Path) -> None:
+    settings = WarehouseSettings(  # type: ignore[call-arg]
+        _env_file=None, db_path=tmp_path / "absent.db", seed_on_startup=False
+    )
+
+    build_store(settings)
+
+    assert not (tmp_path / "absent.db").exists()
