@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     app_env: str = "local"
     log_level: LogLevel = "INFO"
     database_url: str = "sqlite+aiosqlite:///./warden.db"
+    # LangGraph checkpoints (durable runs) live in their own SQLite file.
+    checkpoint_database_url: str = "sqlite+aiosqlite:///./warden_checkpoints.db"
 
     # Auth: API key -> caller identity and role. Paths listed here need no key.
     api_keys: dict[str, Caller] = {}
