@@ -1,4 +1,5 @@
 import pytest
+from langgraph.checkpoint.memory import InMemorySaver
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.core.exceptions import NotFoundError
@@ -11,6 +12,8 @@ from app.schemas.caller import Caller
 from app.schemas.role import Role
 from app.schemas.run_step_kind import RunStepKind
 from app.schemas.run_step_status import RunStepStatus
+from app.schemas.tool_call import ToolCall
+from app.schemas.tool_result import ToolResult
 from app.services.agent_run_service import AgentRunService
 from app.services.audit_service import AuditService
 from tests.fakes.fake_llm_client import FakeLlmClient
@@ -18,6 +21,7 @@ from tests.fakes.fake_tool_client import FakeToolClient
 from tests.unit.orchestrators.orchestrator_helpers import (
     TOOLS,
     build_orchestrator,
+    collect,
     plan,
     review,
     select,
@@ -184,3 +188,61 @@ async def test_execute_when_orchestrator_crashes_marks_run_failed(
     assert failed.status is AgentRunStatus.FAILED
     assert failed.error is not None
     assert "AssertionError" in failed.error
+
+
+async def test_resume_pending_when_run_left_running_resumes_it(
+    session_factory: async_sessionmaker[AsyncSession], audit: AuditService
+) -> None:
+    """A run that was `running` when the process died continues from its checkpoint."""
+    checkpointer = InMemorySaver()
+    replies_before_crash = [
+        plan("Count failed orders", "Count all orders"),
+        select("warehouse.run_query", sql="SELECT 1"),
+        review(True),
+        select("warehouse.run_query", sql="SELECT 2"),
+    ]
+    dying_tools = _DyingToolClient(tools=TOOLS, results={"warehouse.run_query": {"rows": []}})
+    dying = build_orchestrator(FakeLlmClient(replies_before_crash), dying_tools, checkpointer)
+    service = _service(session_factory, audit)
+    run = await service.create_run("Count orders", ADA)
+    await _set_running(session_factory, run.id)
+    with pytest.raises(RuntimeError):
+        await collect(dying.stream(run.id, run.task, Role.ADMIN, TOOLS))
+
+    tools = FakeToolClient(tools=TOOLS, results={"warehouse.run_query": {"rows": [{"n": 500}]}})
+    restarted = AgentRunService(
+        session_factory,
+        audit,
+        build_orchestrator(FakeLlmClient([review(True), "## Summary\nDone."]), tools, checkpointer),
+        tools,
+    )
+
+    assert await restarted.resume_interrupted_runs() == 1
+    await restarted.drain()
+
+    assert (await restarted.get_run(run.id)).status is AgentRunStatus.COMPLETED
+    assert len(tools.calls) == 1  # only the interrupted tool call ran again
+
+
+async def test_resume_pending_when_run_never_started_starts_it_fresh(
+    session_factory: async_sessionmaker[AsyncSession], audit: AuditService
+) -> None:
+    service = _service(session_factory, audit, ['{"steps": []}', "## Summary\nNothing to do."])
+    run = await service.create_run("Nothing", OSCAR)
+
+    assert await service.resume_interrupted_runs() == 1
+    await service.drain()
+
+    assert (await service.get_run(run.id)).status is AgentRunStatus.COMPLETED
+
+
+class _DyingToolClient(FakeToolClient):
+    async def call_tool(self, call: ToolCall) -> ToolResult:
+        if self.calls:
+            raise RuntimeError("process killed")
+        return await super().call_tool(call)
+
+
+async def _set_running(session_factory: async_sessionmaker[AsyncSession], run_id: str) -> None:
+    async with session_factory() as session:
+        await AgentRunRepository(session).update_status(run_id, AgentRunStatus.RUNNING)

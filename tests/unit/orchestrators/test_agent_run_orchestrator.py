@@ -271,3 +271,12 @@ async def test_stream_when_plan_too_long_keeps_first_max_steps() -> None:
 
     assert events[0].output == {"steps": [], "dropped_steps": 3}
     assert kinds(events)[-1] == ("report", "succeeded")
+
+
+async def test_has_checkpoint_when_run_started_is_true_and_unknown_run_false() -> None:
+    llm = FakeLlmClient(['{"steps": []}', "## Summary\nDone."])
+    orchestrator = build_orchestrator(llm)
+    await collect(orchestrator.stream("run-12", TASK, Role.ADMIN, TOOLS))
+
+    assert await orchestrator.has_checkpoint("run-12")
+    assert not await orchestrator.has_checkpoint("never-started")

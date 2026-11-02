@@ -68,6 +68,26 @@ class AgentRunService:
         events = self._orchestrator.stream(run.id, run.task, Role(run.role), tools)
         await self._consume(run, events)
 
+    async def resume_interrupted_runs(self) -> int:
+        """At startup: continue runs that a crash or restart left `running` or `pending`.
+
+        Runs with a checkpoint continue from it; runs that never saved state start fresh.
+        Runs waiting for approval stay paused until a human decides.
+        """
+        resumed = 0
+        for status in (AgentRunStatus.RUNNING, AgentRunStatus.PENDING):
+            async with self._session_factory() as session:
+                runs = await AgentRunRepository(session).list_by_status(status)
+            for run in runs:
+                if await self._orchestrator.has_checkpoint(run.id):
+                    self.resume_in_background(run.id)
+                else:
+                    self._spawn(self.execute_run(run.id))
+                resumed += 1
+        if resumed:
+            logger.info("Resuming %d interrupted run(s)", resumed)
+        return resumed
+
     def resume_in_background(self, run_id: str, decision: ApprovalDecision | None = None) -> None:
         self._spawn(self.resume_run(run_id, decision))
 

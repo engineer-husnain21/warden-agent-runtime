@@ -4,7 +4,13 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.core.config import get_settings
-from app.core.dependencies import get_engine, get_http_client, get_tool_client
+from app.core.dependencies import (
+    get_agent_run_service,
+    get_checkpoint_repository,
+    get_engine,
+    get_http_client,
+    get_tool_client,
+)
 from app.core.logging import configure_logging
 from app.middlewares.api_key_auth_middleware import ApiKeyAuthMiddleware
 from app.middlewares.error_handler_middleware import ErrorHandlerMiddleware
@@ -17,11 +23,16 @@ API_PREFIX = "/api/v1"
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     tool_client = get_tool_client()
+    checkpoints = get_checkpoint_repository()
     await tool_client.connect()
+    await checkpoints.open()
     try:
+        # Runs left `running` or `pending` by a crash or restart continue now.
+        await get_agent_run_service().resume_interrupted_runs()
         yield
     finally:
         await tool_client.close()
+        await checkpoints.close()
         await get_http_client().aclose()
         await get_engine().dispose()
 
