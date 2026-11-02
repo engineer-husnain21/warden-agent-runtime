@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     app_env: str = "local"
     log_level: LogLevel = "INFO"
     database_url: str = "sqlite+aiosqlite:///./warden.db"
+    # LangGraph checkpoints (durable runs) live in their own SQLite file.
+    checkpoint_database_url: str = "sqlite+aiosqlite:///./warden_checkpoints.db"
 
     # Auth: API key -> caller identity and role. Paths listed here need no key.
     api_keys: dict[str, Caller] = {}
@@ -45,6 +47,10 @@ class Settings(BaseSettings):
     llm_provider: LlmProvider = "groq"
     llm_timeout_seconds: float = 60.0
     llm_max_attempts: int = 4
+
+    # Runs: plan length cap and how often a step is retried after a failed review.
+    max_steps: int = 6
+    max_step_retries: int = 1
 
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-120b"

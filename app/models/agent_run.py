@@ -6,7 +6,7 @@ from sqlalchemy import DateTime, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base, str_enum_type, utc_now
-from app.models.agent_run_status import AgentRunStatus
+from app.schemas.agent_run_status import AgentRunStatus
 
 if TYPE_CHECKING:
     from app.models.run_step import RunStep

@@ -5,7 +5,7 @@ from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base, str_enum_type, utc_now
-from app.models.audit_action import AuditAction
+from app.schemas.audit_action import AuditAction
 
 
 class AuditLogEntry(Base):

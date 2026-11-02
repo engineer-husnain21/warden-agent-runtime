@@ -1,7 +1,10 @@
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import AgentRun, AgentRunStatus, RunStep, RunStepKind, RunStepStatus
+from app.models import AgentRun, RunStep
+from app.schemas.agent_run_status import AgentRunStatus
+from app.schemas.run_step_kind import RunStepKind
+from app.schemas.run_step_status import RunStepStatus
 
 
 def _new_run() -> AgentRun:

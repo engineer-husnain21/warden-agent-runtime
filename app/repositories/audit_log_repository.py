@@ -6,8 +6,9 @@ from sqlalchemy.engine import Connection
 from sqlalchemy.orm import Mapper
 
 from app.core.exceptions import PermissionDeniedError
-from app.models import AuditAction, AuditLogEntry
+from app.models import AuditLogEntry
 from app.repositories.base_repository import BaseRepository
+from app.schemas.audit_action import AuditAction
 
 
 class AuditLogRepository(BaseRepository[AuditLogEntry]):

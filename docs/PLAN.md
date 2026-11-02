@@ -5,7 +5,7 @@
 - [x] Day 2 — Data layer, LLM clients, auth
 - [x] Day 3 — MCP servers + ToolClient
 - [x] Day 4 — Policies + agents
-- [ ] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
+- [x] Day 5 — LangGraph orchestrator: approval interrupt + checkpoints
 - [ ] Day 6 — Services, routers, Streamlit console
 - [ ] Day 7 — Evals + CI gate, README, ADRs, demo, final review
 
@@ -179,6 +179,10 @@ Notes: `BaseAgent` keeps the section 6 template and adds protected helpers (`_bu
 | 12 | `docs(adr): add 0003 service persists orchestrator StepEvents` | docs/adr/0003-step-event-stream-persistence.md | — |
 | 13 | `docs(plan): mark Day 5 complete` | docs/PLAN.md | — |
 
+Extra commits: `docs(plan): add warehouse re-seed flag and README lessons to Day 6-7` and `refactor(schemas): move domain enums from models to schemas` (so orchestrators and DTOs never import the DB layer).
+Notes: added `langgraph` and `langgraph-checkpoint-sqlite` (in the planned stack). Checkpoints use their own SQLite file (`CHECKPOINT_DATABASE_URL`). Routing and state helpers live in `run_graph_routes.py` / `run_state_helpers.py`, keeping the orchestrator near 300 lines. New settings `MAX_STEPS` (6) and `MAX_STEP_RETRIES` (1).
+Real end-to-end check (Groq `gpt-oss-120b` + real MCP servers, GitHub dry-run, operator role): planned 2 steps, got the top 3 causes (payment_timeout 14, inventory_unavailable 9, card_declined 6), paused at `github.create_issue`, and after approval created the issue and wrote a correct report. Total 6,151 tokens, 6.2 s LLM time, **$0.00157** per run.
+
 The orchestrator imports only agents, policies, schemas and the `CheckpointRepository` saver (injected). It has no DB sessions and no direct LLM or tool calls.
 **Run / test:** `uv run pytest tests/unit/orchestrators tests/integration/test_orchestrator_resume.py -q` + the green check.
 **Done when:** with fakes, a run pauses on `create_issue`, survives a process restart and resumes without repeating finished steps.
@@ -198,6 +202,7 @@ The orchestrator imports only agents, policies, schemas and the `CheckpointRepos
 | 4 | `feat(services): persist StepEvents as RunStep and audit entries` | agent_run_service.py | `test_execute_when_events_streamed_persists_each_step_and_audit` |
 | 5 | `feat(services): add ApprovalService approve and reject with resume` | app/services/approval_service.py | `test_decide_when_non_admin_raises_permission_denied` |
 | 6 | `feat(services): resume interrupted runs on startup` | agent_run_service.py, app/main.py lifespan | `test_resume_pending_when_run_left_running_resumes_it` |
+| 6b | `feat(mcp-warehouse): re-seed demo data on startup behind WAREHOUSE_SEED_ON_STARTUP` | mcp_servers/warehouse/{warehouse_settings,server}.py, .env.example (`true` for local demo; code default `false`) | `test_main_when_seed_on_startup_reseeds_before_serving` |
 | 7 | `feat(routers): add agent runs router` | app/routers/agent_run_router.py: `POST /api/v1/agent-runs` (202), `GET /{id}`, `/{id}/steps`, `/{id}/report`, `/{id}/metrics` | tests/unit/routers `test_post_agent_runs_when_valid_returns_202` |
 | 8 | `feat(routers): add approvals router` | app/routers/approval_router.py: `GET /api/v1/approvals?status=pending`, `POST /{id}/decisions` | `test_post_decision_when_viewer_returns_403` |
 | 9 | `feat(routers): add audit log router` | app/routers/audit_log_router.py: `GET /api/v1/audit-log-entries` (admin) | `test_get_audit_log_when_admin_returns_entries` |
@@ -228,7 +233,7 @@ The orchestrator imports only agents, policies, schemas and the `CheckpointRepos
 | 6 | `feat(evals): write JSON and Markdown reports and enforce threshold` | evals/runner.py, evals/reports/.gitkeep | `test_main_when_score_below_threshold_exits_1` |
 | 7 | `ci: add eval job on PRs to main with Groq secret` | .github/workflows/evals.yml (`GITHUB_MODE=dry-run`, `EVAL_THRESHOLD=0.8`, uploads report artifact) | eval job green on this PR |
 | 8 | `docs(adr): add 0004 CI eval gate with real LLM` | docs/adr/0004-ci-eval-gate.md | — |
-| 9 | `docs: add README with architecture, quickstart and API examples` | README.md (problem, Mermaid request-flow diagram, quickstart, curl examples, design decisions) | — |
+| 9 | `docs: add README with architecture, quickstart and API examples` | README.md (problem, Mermaid request-flow diagram, quickstart, curl examples, design decisions; document `WAREHOUSE_SEED_ON_STARTUP`; lessons learned: a real-LLM check caught a schema hallucination (`cause` instead of `failure_reason`), fixed by injecting the live DB schema into the `run_query` tool description) | — |
 | 10 | `docs: add real eval metrics and cost/latency numbers` | README.md (from evals/reports + /metrics of the demo run) | — |
 | 11 | `docs: add recorded demo run` | docs/demo/demo.md (API transcript), docs/demo/warden-demo.gif (≤ 10 MB, recorded with ScreenToGif) | — |
 | 12 | `refactor: fix findings from CLAUDE.md compliance review` | as found (layer imports, naming, file size ≤ 300 lines, type hints, no print) | full green check + import-direction test `test_layers_when_imported_never_import_upward` |

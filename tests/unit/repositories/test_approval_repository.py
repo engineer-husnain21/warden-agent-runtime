@@ -2,9 +2,10 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import InvalidInputError
-from app.models import Approval, ApprovalStatus
+from app.models import Approval
 from app.repositories.agent_run_repository import AgentRunRepository
 from app.repositories.approval_repository import ApprovalRepository
+from app.schemas.approval_status import ApprovalStatus
 
 
 @pytest.fixture

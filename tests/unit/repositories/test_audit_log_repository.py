@@ -2,8 +2,8 @@ import pytest
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.exceptions import PermissionDeniedError
-from app.models import AuditAction
 from app.repositories.audit_log_repository import AuditLogRepository
+from app.schemas.audit_action import AuditAction
 
 
 @pytest.fixture

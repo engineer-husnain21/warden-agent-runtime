@@ -3,8 +3,9 @@ from collections.abc import Sequence
 from sqlalchemy import func, select
 
 from app.db.base import utc_now
-from app.models import AgentRun, AgentRunStatus, RunStep
+from app.models import AgentRun, RunStep
 from app.repositories.base_repository import BaseRepository
+from app.schemas.agent_run_status import AgentRunStatus
 
 _TERMINAL_STATUSES = {AgentRunStatus.COMPLETED, AgentRunStatus.FAILED}
 
