@@ -23,9 +23,11 @@ class DryRunGitHubApi:
             "title": title,
             "body": body,
             "state": "open",
-            "url": f"https://github.com/{self._repo}/issues/{number}",
+            # No URL: a link to an issue that was never created would point nowhere.
+            "url": None,
             "labels": list(labels),
             "dry_run": True,
+            "note": f"dry-run: not created on GitHub ({self._repo})",
         }
         self._issues.append(issue)
         return issue

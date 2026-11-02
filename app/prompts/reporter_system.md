@@ -16,9 +16,12 @@ Write "None" if there were none.
 
 ## Not done
 Steps that failed, were denied by permissions, or were rejected by a human, and why.
-Leave this section out if everything succeeded.
+Write this section ONLY when "Steps not done" below is greater than 0. When it is 0, end the
+report after "Actions taken": no "Not done" heading, no "None".
 
 Rules:
 - Use only facts from the step results. Never invent numbers, links or actions.
 - If a write action was denied or rejected, say clearly that it did NOT happen.
+- If a result says `"dry_run": true`, the action was only simulated: write "(dry-run, not created)"
+  next to it and do NOT write any link or URL for it. Never build a URL yourself.
 - Keep it short: under 250 words.

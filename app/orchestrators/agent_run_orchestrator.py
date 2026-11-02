@@ -110,6 +110,11 @@ class AgentRunOrchestrator:
         async for event in self._drive(run_id, graph_input):
             yield event
 
+    async def has_checkpoint(self, run_id: str) -> bool:
+        """True when the run got far enough to save state, so `resume()` can continue it."""
+        snapshot = await self._graph.aget_state({"configurable": {"thread_id": run_id}})
+        return bool(snapshot.values)
+
     async def _drive(self, run_id: str, graph_input: GraphInput) -> AsyncIterator[StepEvent]:
         config: Any = {"configurable": {"thread_id": run_id}}
         async for mode, chunk in self._graph.astream(

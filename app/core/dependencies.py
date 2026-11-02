@@ -7,20 +7,33 @@ from functools import lru_cache
 from pathlib import Path
 
 import httpx
+from fastapi import Request
 from mcp import StdioServerParameters
 from pydantic import SecretStr
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 
+from app.agents.planner_agent import PlannerAgent
+from app.agents.reporter_agent import ReporterAgent
+from app.agents.step_reviewer_agent import StepReviewerAgent
+from app.agents.tool_executor_agent import ToolExecutorAgent
+from app.agents.tool_selector_agent import ToolSelectorAgent
 from app.clients.gemini_llm_client import GeminiLlmClient
 from app.clients.groq_llm_client import GroqLlmClient
 from app.clients.llm_client import LlmClient
 from app.clients.mcp_tool_client import McpToolClient
 from app.clients.tool_client import ToolClient
 from app.core.config import get_settings
-from app.core.exceptions import ConfigurationError
+from app.core.exceptions import AuthenticationError, ConfigurationError
 from app.core.file_prompt_loader import FilePromptLoader
 from app.core.prompt_loader import PromptLoader
 from app.db.session import build_engine, build_session_factory, get_session
+from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
+from app.policies.tool_permission_policy import ToolPermissionPolicy
+from app.repositories.checkpoint_repository import CheckpointRepository
+from app.schemas.caller import Caller
+from app.services.agent_run_service import AgentRunService
+from app.services.approval_service import ApprovalService
+from app.services.audit_service import AuditService
 
 PROJECT_ROOT = Path(__file__).resolve().parents[2]
 PROMPTS_DIR = PROJECT_ROOT / "app" / "prompts"
@@ -90,6 +103,53 @@ def get_tool_client() -> ToolClient:
         for name, module in settings.mcp_server_modules.items()
     }
     return McpToolClient(servers, timeout_seconds=settings.mcp_tool_timeout_seconds)
+
+
+@lru_cache
+def get_checkpoint_repository() -> CheckpointRepository:
+    """Opened and closed in the app lifespan, before any run starts."""
+    return CheckpointRepository(get_settings().checkpoint_database_url)
+
+
+@lru_cache
+def get_orchestrator() -> AgentRunOrchestrator:
+    settings, llm, prompts = get_settings(), get_llm_client(), get_prompt_loader()
+    return AgentRunOrchestrator(
+        planner=PlannerAgent(llm, prompts),
+        tool_selector=ToolSelectorAgent(llm, prompts),
+        tool_executor=ToolExecutorAgent(llm, prompts, get_tool_client()),
+        step_reviewer=StepReviewerAgent(llm, prompts),
+        reporter=ReporterAgent(llm, prompts),
+        policy=ToolPermissionPolicy(settings.tool_permission_rules),
+        checkpointer=get_checkpoint_repository().saver,
+        max_steps=settings.max_steps,
+        max_step_retries=settings.max_step_retries,
+    )
+
+
+@lru_cache
+def get_audit_service() -> AuditService:
+    return AuditService(get_session_factory())
+
+
+@lru_cache
+def get_agent_run_service() -> AgentRunService:
+    return AgentRunService(
+        get_session_factory(), get_audit_service(), get_orchestrator(), get_tool_client()
+    )
+
+
+@lru_cache
+def get_approval_service() -> ApprovalService:
+    return ApprovalService(get_session_factory(), get_agent_run_service())
+
+
+def get_current_caller(request: Request) -> Caller:
+    """The caller ApiKeyAuthMiddleware resolved from the X-API-Key header."""
+    caller = getattr(request.state, "caller", None)
+    if not isinstance(caller, Caller):
+        raise AuthenticationError("Missing or invalid API key")
+    return caller
 
 
 def _require_key(secret: SecretStr | None, env_name: str) -> str:
