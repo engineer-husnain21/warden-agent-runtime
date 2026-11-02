@@ -16,6 +16,7 @@ from app.orchestrators.run_state_helpers import (
     result_output,
     tools_of,
 )
+from app.policies.tool_permission_policy import ToolPermissionPolicy
 from app.schemas.agents.planner_input import PlannerInput
 from app.schemas.agents.planner_output import PlannerOutput
 from app.schemas.agents.reporter_input import ReporterInput
@@ -27,6 +28,7 @@ from app.schemas.agents.tool_executor_input import ToolExecutorInput
 from app.schemas.agents.tool_executor_output import ToolExecutorOutput
 from app.schemas.agents.tool_selector_input import ToolSelectorInput
 from app.schemas.agents.tool_selector_output import ToolSelectorOutput
+from app.schemas.policy_decision import PolicyDecision
 from app.schemas.role import Role
 from app.schemas.run_state import RunState
 from app.schemas.run_step_kind import RunStepKind
@@ -38,6 +40,11 @@ from app.schemas.tool_spec import ToolSpec
 
 GraphInput = RunState | Command[Any] | None
 PREVIOUS_RESULT_CHARS = 1500
+_PERMISSION_STATUS = {
+    PolicyDecision.ALLOW: RunStepStatus.SUCCEEDED,
+    PolicyDecision.DENY: RunStepStatus.DENIED,
+    PolicyDecision.NEEDS_APPROVAL: RunStepStatus.AWAITING_APPROVAL,
+}
 
 
 class AgentRunOrchestrator:
@@ -56,6 +63,7 @@ class AgentRunOrchestrator:
         tool_executor: BaseAgent[ToolExecutorInput, ToolExecutorOutput],
         step_reviewer: BaseAgent[StepReviewerInput, StepReviewerOutput],
         reporter: BaseAgent[ReporterInput, ReporterOutput],
+        policy: ToolPermissionPolicy,
         checkpointer: BaseCheckpointSaver[str],
     ) -> None:
         self._planner = planner
@@ -63,6 +71,7 @@ class AgentRunOrchestrator:
         self._tool_executor = tool_executor
         self._step_reviewer = step_reviewer
         self._reporter = reporter
+        self._policy = policy
         self._graph = self._build_graph().compile(checkpointer=checkpointer)
 
     async def stream(
@@ -96,6 +105,7 @@ class AgentRunOrchestrator:
         for name, node in [
             ("plan", self._plan),
             ("select", self._select),
+            ("check_permission", self._check_permission),
             ("execute", self._execute),
             ("review", self._review),
             ("next_step", self._next_step),
@@ -104,7 +114,12 @@ class AgentRunOrchestrator:
             graph.add_node(name, node)
         graph.add_edge(START, "plan")
         graph.add_conditional_edges("plan", _route_to_step_or_report, ["select", "report"])
-        graph.add_conditional_edges("select", _route_after_select, ["execute", "next_step"])
+        graph.add_conditional_edges(
+            "select", _route_after_select, ["check_permission", "next_step"]
+        )
+        graph.add_conditional_edges(
+            "check_permission", _route_after_permission, ["execute", "next_step"]
+        )
         graph.add_edge("execute", "review")
         graph.add_edge("review", "next_step")
         graph.add_conditional_edges("next_step", _route_to_step_or_report, ["select", "report"])
@@ -156,6 +171,24 @@ class AgentRunOrchestrator:
         )
         return {"pending_call": call.model_dump()}
 
+    async def _check_permission(self, state: RunState) -> dict[str, Any]:
+        call, role = pending_call(state), Role(state["role"])
+        decision = self._policy.decide(call.tool, role)
+        status = _PERMISSION_STATUS[decision]
+        emit(
+            state,
+            RunStepKind.PERMISSION_CHECK,
+            status,
+            tool_name=call.tool,
+            tool_arguments=call.arguments,
+            policy_decision=decision,
+        )
+        update: dict[str, Any] = {"policy_decision": decision.value}
+        if decision is PolicyDecision.DENY:
+            note = f"Denied: role '{role.value}' may not call {call.tool}"
+            update["records"] = [record(current_step(state), "denied", call.tool, note=note)]
+        return update
+
     async def _execute(self, state: RunState) -> dict[str, Any]:
         call = pending_call(state)
         output = await self._tool_executor.run(ToolExecutorInput(call=call))
@@ -202,6 +235,7 @@ class AgentRunOrchestrator:
             "attempt": 0,
             "feedback": None,
             "pending_call": None,
+            "policy_decision": None,
             "last_result": None,
         }
 
@@ -223,4 +257,8 @@ def _route_to_step_or_report(state: RunState) -> str:
 
 
 def _route_after_select(state: RunState) -> str:
-    return "execute" if state.get("pending_call") else "next_step"
+    return "check_permission" if state.get("pending_call") else "next_step"
+
+
+def _route_after_permission(state: RunState) -> str:
+    return "execute" if state.get("policy_decision") == PolicyDecision.ALLOW else "next_step"

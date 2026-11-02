@@ -45,6 +45,7 @@ async def test_stream_when_two_steps_yields_events_in_order() -> None:
 
     step_events = [
         ("tool_selection", "succeeded"),
+        ("permission_check", "succeeded"),
         ("tool_call", "succeeded"),
         ("review", "succeeded"),
     ]
@@ -74,3 +75,45 @@ async def test_stream_when_selector_fails_twice_records_failed_step_and_continue
     ]
     assert tools.calls == []
     assert "[failed]" in llm.calls[-1][1].content
+
+
+async def test_stream_when_viewer_creates_issue_yields_denied_event() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Open an issue for payment timeouts"),
+            select("github.create_issue", title="Payment timeouts"),
+            "## Summary\nNo issue was opened: not allowed.",
+        ]
+    )
+    tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
+
+    events = await collect(build_orchestrator(llm, tools).stream("run-4", TASK, Role.VIEWER, TOOLS))
+
+    assert kinds(events) == [
+        ("plan", "succeeded"),
+        ("tool_selection", "succeeded"),
+        ("permission_check", "denied"),
+        ("report", "succeeded"),
+    ]
+    assert events[2].policy_decision is not None
+    assert events[2].policy_decision.value == "deny"
+    assert tools.calls == []
+    assert "[denied]" in llm.calls[-1][1].content
+    assert "role 'viewer' may not call github.create_issue" in llm.calls[-1][1].content
+
+
+async def test_stream_when_admin_creates_issue_executes_it() -> None:
+    llm = FakeLlmClient(
+        [
+            plan("Open an issue for payment timeouts"),
+            select("github.create_issue", title="Payment timeouts"),
+            review(True),
+            "## Summary\nOpened issue #1.",
+        ]
+    )
+    tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
+
+    events = await collect(build_orchestrator(llm, tools).stream("run-5", TASK, Role.ADMIN, TOOLS))
+
+    assert ("tool_call", "succeeded") in kinds(events)
+    assert len(tools.calls) == 1

@@ -12,9 +12,11 @@ from app.agents.reporter_agent import ReporterAgent
 from app.agents.step_reviewer_agent import StepReviewerAgent
 from app.agents.tool_executor_agent import ToolExecutorAgent
 from app.agents.tool_selector_agent import ToolSelectorAgent
+from app.core.config import Settings
 from app.core.dependencies import PROMPTS_DIR
 from app.core.file_prompt_loader import FilePromptLoader
 from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
+from app.policies.tool_permission_policy import ToolPermissionPolicy
 from app.schemas.step_event import StepEvent
 from app.schemas.tool_spec import ToolSpec
 from tests.fakes.fake_llm_client import FakeLlmClient
@@ -48,6 +50,7 @@ def build_orchestrator(
         tool_executor=ToolExecutorAgent(llm, prompts, tools or FakeToolClient()),
         step_reviewer=StepReviewerAgent(llm, prompts),
         reporter=ReporterAgent(llm, prompts),
+        policy=ToolPermissionPolicy(Settings(_env_file=None).tool_permission_rules),  # type: ignore[call-arg]
         checkpointer=checkpointer or InMemorySaver(),
     )
 
