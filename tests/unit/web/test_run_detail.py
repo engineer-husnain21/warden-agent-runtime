@@ -30,6 +30,17 @@ def test_run_detail_when_loaded_shows_bordered_metric_cards_with_icons() -> None
     assert all(m.proto.show_border for m in page.metric)
 
 
+def test_run_detail_when_loaded_draws_run_flow_chart() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    [chart] = page.get("graphviz_chart")
+    assert "digraph run" in chart.proto.spec
+    assert "start -> s0;" in chart.proto.spec
+
+
 def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient()

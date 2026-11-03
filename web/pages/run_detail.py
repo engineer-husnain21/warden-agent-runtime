@@ -4,6 +4,7 @@ import streamlit as st
 
 from web.console_layout import setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
+from web.run_flow import build_run_flow_dot
 from web.trace_format import expander_title, trace_row
 from web.warden_api_error import WardenApiError
 
@@ -60,6 +61,9 @@ cards[2].metric(
 cards[3].metric(
     "Est. cost", f"${metrics['total_cost_usd']:.5f}", icon=":material/payments:", border=True
 )
+
+st.subheader("Run flow")
+st.graphviz_chart(build_run_flow_dot(steps, run["status"]), width="stretch")
 
 st.subheader("Report")
 if report.get("report"):
