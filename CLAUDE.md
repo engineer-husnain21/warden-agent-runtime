@@ -251,7 +251,7 @@ Web console in `web/` (Streamlit) for runs, traces and approvals.
 | Thing | Location | Class names |
 |---|---|---|
 | Task-run graph (LangGraph) | `app/orchestrators/` | `AgentRunOrchestrator` |
-| Agents (one job each) | `app/agents/` | `PlannerAgent` (splits task into steps), `ToolSelectorAgent` (picks tool + arguments for one step), `StepReviewerAgent` (judges if a step result is good enough), `ReporterAgent` (writes final report) |
+| Agents (one job each) | `app/agents/` | `PlannerAgent` (splits task into steps), `ToolSelectorAgent` (picks tool + arguments for one step), `StepReviewerAgent` (judges if a step result is good enough), `ReporterAgent` (writes final report); non-LLM (ADR 0001): `ToolCatalogAgent` (lists the tools a run can use), `ToolExecutorAgent` (runs one approved tool call) |
 | LLM access | `app/clients/` | Protocol `LlmClient`; `GroqLlmClient`, `GeminiLlmClient` |
 | MCP tool access | `app/clients/` | Protocol `ToolClient`; `McpToolClient` |
 | LangGraph checkpoints | `app/repositories/` | `CheckpointRepository` (injected into the orchestrator through DI; the orchestrator never opens DB sessions) |
