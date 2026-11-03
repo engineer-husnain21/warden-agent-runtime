@@ -1,7 +1,19 @@
 from evals.runner import select_scenarios
-from evals.scenario_loader import load_scenarios
+from evals.scenario_loader import SCENARIOS_DIR, load_scenarios
 
 KNOWN_SERVERS = {"warehouse", "github", "notifier"}
+
+
+def test_scenario_files_when_task_has_hash_quote_it() -> None:
+    """In YAML, ` #` starts a comment: `task: Message #ops` silently became `Message`."""
+    unquoted = [
+        f"{path.name}: {line}"
+        for path in SCENARIOS_DIR.glob("*.yaml")
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if line.startswith("task: ") and line[6:7] not in {'"', "'", ">", "|"} and " #" in line
+    ]
+
+    assert unquoted == []
 
 
 def test_smoke_scenarios_when_selected_cover_every_area_in_8_to_10_runs() -> None:
