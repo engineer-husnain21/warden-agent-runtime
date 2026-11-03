@@ -61,6 +61,15 @@ def test_score_when_run_misbehaves_lists_every_failure() -> None:
     ]
 
 
+@pytest.mark.parametrize(("report", "passed"), [("$8,297.63", True), ("8297.6", False)])
+def test_score_when_report_check_lists_alternatives_accepts_any(report: str, passed: bool) -> None:
+    scenario = make_scenario(
+        approval="none", expect={"tools": [ISSUE], "report_contains": ["8297.63|8,297.63"]}
+    )
+
+    assert score_run(scenario, COMPLETED, APPROVED_STEPS, report, METRICS).passed is passed
+
+
 def test_score_when_tool_denied_and_not_run_passes() -> None:
     scenario = make_scenario(
         role="viewer",

@@ -42,7 +42,7 @@ def score_run(
     failures += [
         f"report does not mention '{text}'"
         for text in expect.report_contains
-        if text.lower() not in report_lower
+        if not any(option.lower() in report_lower for option in text.split("|"))
     ]
     failures += [
         f"report mentions '{text}'"

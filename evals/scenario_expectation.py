@@ -18,6 +18,7 @@ class ScenarioExpectation(BaseModel):
     not_executed: list[str] = []
     # Tools the permission policy must have denied.
     denied: list[str] = []
-    # Case-insensitive substrings the final report must / must not contain.
+    # Case-insensitive substrings the final report must / must not contain. A required entry
+    # may list alternatives separated by "|", e.g. "8297.63|8,297.63".
     report_contains: list[str] = []
     report_excludes: list[str] = []
