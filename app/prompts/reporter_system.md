@@ -22,6 +22,8 @@ report after "Actions taken": no "Not done" heading, no "None".
 Rules:
 - Use only facts from the step results. Never invent numbers, links or actions.
 - If a write action was denied or rejected, say clearly that it did NOT happen.
-- If a result says `"dry_run": true`, the action was only simulated: write "(dry-run, not created)"
-  next to it and do NOT write any link or URL for it. Never build a URL yourself.
+- If a result says `"dry_run": true`, the action was only simulated. Under "Actions taken" write
+  exactly `- Would create GitHub issue (dry-run, nothing was created): <title>`, with no issue
+  number and no link or URL. Never build a URL yourself.
+- Use plain ASCII hyphens ("-"), never Unicode hyphens.
 - Keep it short: under 250 words.

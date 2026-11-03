@@ -74,18 +74,18 @@ DRY_RUN_STEP = StepRecord(
     result=ToolResult(
         tool="github.create_issue",
         ok=True,
-        content={"issue": {"number": 1000, "url": None, "dry_run": True}},
+        content={"issue": {"number": 1000, "title": "Top 3 causes", "url": None, "dry_run": True}},
     ),
 )
 
 
-async def test_run_when_issue_is_dry_run_removes_links_to_it(
+async def test_run_when_issue_is_dry_run_says_would_create_without_number_or_link(
     prompt_loader: FilePromptLoader,
 ) -> None:
     reply = (
+        "## Summary\nSee [Issue #1000](https://github.com/octo/warden-sandbox/issues/1000).\n\n"
         "## Actions taken\n"
-        "- [Issue #1000](https://github.com/octo/warden-sandbox/issues/1000)\n"
-        "- Also see https://github.com/octo/warden-sandbox/issues/1000\n"
+        "- GitHub issue created (dry\u2011run, not created): **#1000 \u2013 Top 3 causes**\n"
         "- Older issue https://github.com/octo/warden-sandbox/issues/12 stays linked"
     )
     llm = FakeLlmClient([reply])
@@ -94,10 +94,12 @@ async def test_run_when_issue_is_dry_run_removes_links_to_it(
         ReporterInput(task="t", steps=[DRY_RUN_STEP])
     )
 
-    assert "issues/1000" not in output.report
-    assert "- Issue #1000 (dry-run, not created)" in output.report
-    assert "- Also see (dry-run, not created)" in output.report
-    assert "https://github.com/octo/warden-sandbox/issues/12" in output.report
+    assert output.report == (
+        "## Summary\nSee Issue #1000 (dry-run, nothing was created).\n\n"
+        "## Actions taken\n"
+        "- Would create GitHub issue (dry-run, nothing was created): Top 3 causes\n"
+        "- Older issue https://github.com/octo/warden-sandbox/issues/12 stays linked"
+    )
 
 
 async def test_run_when_issue_is_live_keeps_its_link(prompt_loader: FilePromptLoader) -> None:
@@ -119,7 +121,8 @@ async def test_run_when_issue_is_live_keeps_its_link(prompt_loader: FilePromptLo
     assert output.report == reply
 
 
-def test_reporter_prompt_when_loaded_forbids_dry_run_links() -> None:
+def test_reporter_prompt_when_loaded_gives_exact_dry_run_wording() -> None:
     prompt = (PROMPTS_DIR / "reporter_system.md").read_text(encoding="utf-8")
 
-    assert "(dry-run, not created)" in prompt
+    assert "- Would create GitHub issue (dry-run, nothing was created): <title>" in prompt
+    assert "no issue\n  number and no link" in prompt
