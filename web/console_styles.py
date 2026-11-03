@@ -47,14 +47,17 @@ _RULES = """
 .w-metric-label { color: var(--w-muted); font-size: 0.8rem; font-weight: 500; }
 .w-metric-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em;
   line-height: 1.2; color: var(--w-text); }
-.warden-timeline { position: relative; margin: 0.25rem 0 1rem 0.9rem;
+.warden-timeline { position: relative; margin: 0.25rem 0 1rem 0.9rem; padding-left: 1.6rem;
   border-left: 1px solid var(--w-border); }
-.warden-timeline .tl-item { position: relative; display: flex; gap: 0.75rem;
-  padding: 0.35rem 0 0.85rem 1.4rem; }
-.warden-timeline .tl-icon { position: absolute; left: -0.95rem; top: 0.2rem; width: 1.8rem;
-  height: 1.8rem; display: flex; align-items: center; justify-content: center;
-  border-radius: 999px; background: var(--w-surface); border: 1px solid var(--w-border);
-  font-size: 0.9rem; }
+.warden-timeline .tl-item { position: relative; margin-bottom: 0.7rem; padding: 0.55rem 0.9rem;
+  border-left: 3px solid var(--k); border-radius: 0 0.6rem 0.6rem 0;
+  background: linear-gradient(90deg, color-mix(in srgb, var(--k) 14%, transparent),
+    transparent 75%); }
+.warden-timeline .tl-icon { position: absolute; left: calc(-2.5rem - 3px); top: 0.45rem;
+  width: 1.8rem; height: 1.8rem; display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; font-size: 0.9rem; border: 1px solid var(--k);
+  background: color-mix(in srgb, var(--k) 25%, var(--w-surface));
+  box-shadow: 0 0 12px color-mix(in srgb, var(--k) 45%, transparent); }
 .warden-timeline .tl-title { font-weight: 600; display: flex; align-items: center;
   gap: 0.5rem; flex-wrap: wrap; }
 .warden-timeline .tl-tool { font-family: 'JetBrains Mono', monospace; font-weight: 500;

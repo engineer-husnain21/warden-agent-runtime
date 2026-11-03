@@ -1,5 +1,6 @@
 import pytest
 
+from web import theme
 from web.trace_format import decision_label, expander_title, timeline_html, trace_row
 
 
@@ -97,3 +98,21 @@ def test_timeline_html_when_approval_decided_shows_who_decided() -> None:
     }
 
     assert "rejected by ada" in timeline_html([step])
+
+
+@pytest.mark.parametrize(
+    ("kind", "color"),
+    [
+        ("plan", theme.PURPLE),
+        ("tool_selection", theme.BLUE),
+        ("permission_check", theme.CYAN),
+        ("approval", theme.AMBER),
+        ("tool_call", theme.PINK),
+        ("review", theme.TEAL),
+        ("report", theme.GREEN),
+    ],
+)
+def test_timeline_html_when_step_kind_given_uses_its_colour(kind: str, color: str) -> None:
+    html = timeline_html([{**PLAN_STEP, "kind": kind}])
+
+    assert f'class="tl-item" style="--k: {color}"' in html

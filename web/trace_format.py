@@ -4,6 +4,7 @@ from html import escape
 from typing import Any
 
 from web.console_layout import status_pill
+from web.theme import kind_color
 
 
 def decision_label(step: dict[str, Any]) -> str | None:
@@ -85,7 +86,7 @@ def _timeline_item(step: dict[str, Any]) -> str:
         )
     pill = status_pill(step["status"])
     return (
-        '<div class="tl-item">'
+        f'<div class="tl-item" style="--k: {kind_color(kind)}">'
         f'<div class="tl-icon">{KIND_ICONS.get(kind, "•")}</div>'
         '<div class="tl-body">'
         f'<div class="tl-title">#{step["position"]} {title} {tool} {pill}</div>'
