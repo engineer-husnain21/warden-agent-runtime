@@ -1,0 +1,67 @@
+name: Evals
+
+# Real-LLM eval gate (docs/adr/0004). Pull requests to main run the `smoke` subset; the full
+# suite runs from the "Run workflow" button (and locally). GitHub stays in dry-run:
+# evals/eval_environment.py forces it, so no real issue is ever created from CI.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which scenarios to run
+        type: choice
+        options: [full, smoke]
+        default: full
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    name: eval gate (real LLM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      LLM_PROVIDER: groq
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      EVAL_THRESHOLD: "0.8"
+      SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Check the Groq secret
+        if: env.GROQ_API_KEY == ''
+        run: |
+          echo "::error::The GROQ_API_KEY repository secret is not set."
+          exit 1
+
+      # Concurrency 1: Groq's per-minute token limit, not the runner, sets the pace.
+      - name: Run evals (${{ env.SUITE }})
+        run: |
+          if [ "$SUITE" = "smoke" ]; then
+            uv run python -m evals.runner --concurrency 1 --tag smoke
+          else
+            uv run python -m evals.runner --concurrency 1
+          fi
+
+      - name: Add the report to the job summary
+        if: always()
+        run: cat evals/reports/latest.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload the eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports-${{ env.SUITE }}
+          path: evals/reports/
+          if-no-files-found: ignore
