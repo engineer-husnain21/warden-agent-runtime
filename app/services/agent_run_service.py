@@ -162,6 +162,7 @@ class AgentRunService:
 
     async def _persist(self, event: StepEvent, run: AgentRunResponse) -> None:
         step = RunStep(
+            step_index=event.step_index,
             kind=event.kind,
             status=event.status,
             agent=event.agent,

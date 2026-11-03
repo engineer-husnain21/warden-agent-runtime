@@ -142,6 +142,8 @@ async def test_execute_when_events_streamed_persists_each_step_and_audit(
         "report",
     ]
     assert steps[0].input_tokens > 0
+    # Plan-step events carry their plan step; run-level events (plan, report) have none.
+    assert [s.step_index for s in steps] == [None, 0, 0, 0, 0, None]
     finished = await service.get_report(run.id)
     assert finished.status is AgentRunStatus.COMPLETED
     assert finished.report == "## Summary\n35 orders failed."

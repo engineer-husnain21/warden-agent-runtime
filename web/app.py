@@ -3,12 +3,19 @@
 Run: `uv run streamlit run web/app.py` (the API must be running).
 """
 
+from typing import Any
+
 import streamlit as st
 
-from web.console_state import get_api_client, render_sidebar
+from web import theme
+from web.charts import status_donut_chart
+from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
+from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
-st.set_page_config(page_title="Warden console", layout="wide")
+AUTO_REFRESH_SECONDS = 5
+
+setup_page("Agent runs")
 render_sidebar()
 api = get_api_client()
 
@@ -27,30 +34,66 @@ with st.form("new_run", clear_on_submit=True):
         except WardenApiError as error:
             st.error(f"Could not start the run: {error.message}")
 
-st.subheader("Recent runs")
-st.button("Refresh")
 try:
-    runs = api.list_runs()
+    prefetched: list[dict[str, Any]] = [api.get_overview()]
 except WardenApiError as error:
     st.error(f"Could not load runs: {error.message}")
-    runs = []
+    st.stop()
 
-if runs:
-    st.dataframe(
-        [
-            {
-                "id": run["id"],
-                "status": run["status"],
-                "task": run["task"],
-                "requested by": f"{run['requested_by']} ({run['role']})",
-                "created": run["created_at"],
-            }
-            for run in runs
-        ],
-        hide_index=True,
-        width="stretch",
-        # Wide enough for "awaiting_approval" without cutting it off.
-        column_config={"status": st.column_config.TextColumn("status", width="medium")},
-    )
-else:
-    st.info("No runs yet.")
+polling = bool(prefetched[0]["active"])
+
+
+@st.fragment(run_every=AUTO_REFRESH_SECONDS if polling else None)
+def overview_panel() -> None:
+    """Stats and recent runs. Re-runs on its own every few seconds while a run is active."""
+    # The full page run already fetched once; fragment re-runs fetch fresh data.
+    overview = prefetched.pop() if prefetched else api.get_overview()
+    if polling and not overview["active"]:
+        st.rerun()  # nothing left to watch: a full rerun turns polling off
+
+    colors = theme.HOME_METRIC_COLORS
+    cards = [
+        metric_card("Total runs", str(overview["total_runs"]), "play", colors["total_runs"]),
+        metric_card(
+            "Awaiting approval",
+            str(overview["awaiting_approval"]),
+            "shield",
+            colors["awaiting_approval"],
+        ),
+        metric_card("Completed", str(overview["completed"]), "check", colors["completed"]),
+        metric_card(
+            "Total cost", f"${overview['total_cost_usd']:.5f}", "coins", colors["total_cost"]
+        ),
+    ]
+    st.markdown(metric_row(cards), unsafe_allow_html=True)
+
+    runs_col, chart_col = st.columns([3, 1.2])
+    donut = status_donut_chart(overview["status_counts"])
+    if donut is not None:
+        chart_col.subheader("Runs by status")
+        chart_col.altair_chart(donut, width="stretch")
+
+    with runs_col:
+        st.subheader("Recent runs")
+        if overview["active"]:
+            st.caption(f"Refreshing every {AUTO_REFRESH_SECONDS} s while runs are active.")
+        if not overview["runs"]:
+            st.info("No runs yet.")
+        for run in overview["runs"]:
+            _render_run_row(run)
+
+
+def _render_run_row(run: dict[str, Any]) -> None:
+    with st.container(border=True):
+        pill_col, task_col, meta_col, open_col = st.columns(
+            [1.4, 5.4, 2.2, 1.3], vertical_alignment="center"
+        )
+        pill_col.markdown(status_pill(run["status"]), unsafe_allow_html=True)
+        task_col.markdown(f"**{run['task']}**")
+        meta_col.caption(f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}")
+        if open_col.button("Open", key=f"open-{run['id']}", width="stretch"):
+            st.session_state[SELECTED_RUN_KEY] = run["id"]
+            st.switch_page("pages/run_detail.py")
+
+
+overview_panel()

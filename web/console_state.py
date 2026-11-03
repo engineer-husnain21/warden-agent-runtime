@@ -6,6 +6,8 @@ from web.api_client import WardenApiClient
 from web.console_settings import ConsoleSettings
 
 CLIENT_KEY = "api_client"
+# The run the Run detail page opens with (set by "Open" on the home page).
+SELECTED_RUN_KEY = "selected_run_id"
 
 
 def render_sidebar() -> None:

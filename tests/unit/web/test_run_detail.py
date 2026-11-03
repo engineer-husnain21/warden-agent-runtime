@@ -3,6 +3,8 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from tests.unit.web.page_helpers import metric_cards
+from web import theme
 
 PAGE = Path(__file__).resolve().parents[3] / "web" / "pages" / "run_detail.py"
 
@@ -15,8 +17,77 @@ def test_run_detail_when_loaded_shows_steps_table() -> None:
 
     assert not page.exception
     assert len(page.dataframe) == 1
-    assert [metric.value for metric in page.metric] == ["6", "6,150", "6.2 s", "$0.00157"]
+    values = [value for value, _ in metric_cards(page).values()]
+    assert values == ["6", "6,150", "6.2 s", "$0.00157"]
     assert any("All good." in block.value for block in page.markdown)
+
+
+def test_run_detail_when_loaded_shows_one_colour_per_metric_card() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    colors = {label: color for label, (_, color) in metric_cards(page).items()}
+    assert colors == {
+        "LLM calls": theme.BLUE,
+        "Tokens": theme.PURPLE,
+        "LLM latency": theme.AMBER,
+        "Est. cost": theme.GREEN,
+    }
+
+
+def test_run_detail_when_loaded_draws_run_flow_chart() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    [chart] = page.get("graphviz_chart")
+    assert "digraph run" in chart.proto.spec
+    assert "start -> plan_0;" in chart.proto.spec
+
+
+def test_run_detail_when_steps_used_llm_shows_tokens_and_cost_charts() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    specs = [chart.proto.spec for chart in page.get("vega_lite_chart")]
+    assert len(specs) == 2
+    assert '"Tokens per step"' in specs[0]
+    assert '"Cost per step"' in specs[1]
+
+
+def test_run_detail_when_report_has_headings_shows_them_below_report_heading() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    report = next(block.value for block in page.markdown if "All good." in block.value)
+    assert report.startswith("#### Summary")
+
+
+def test_run_detail_when_steps_have_details_groups_them_in_one_expander() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    assert [expander.label for expander in page.expander] == ["Table view", "Step details"]
+    assert len(page.expander[1].json) == 1
+
+
+def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+    page.session_state["selected_run_id"] = "r1"
+
+    page.run()
+
+    assert page.selectbox[0].value == "r1"
 
 
 def test_run_detail_when_api_down_shows_error() -> None:

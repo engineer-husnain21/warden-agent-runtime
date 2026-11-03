@@ -39,6 +39,7 @@ class FakeWardenApiClient:
         return [
             {
                 "position": 0,
+                "step_index": None,
                 "kind": "plan",
                 "status": "succeeded",
                 "agent": "planner",
@@ -83,6 +84,30 @@ class FakeWardenApiClient:
                 "created_at": "2026-11-02T09:00:04Z",
                 "decided_at": None,
             }
+        ]
+
+    def get_overview(self, limit: int = 50) -> dict[str, Any]:
+        runs = self.list_runs(limit)
+        return {
+            "runs": runs,
+            "total_runs": len(runs),
+            "awaiting_approval": 1,
+            "completed": 0,
+            "total_cost_usd": 0.00157,
+            "status_counts": {"awaiting_approval": 1},
+            "active": True,
+        }
+
+    def list_pending_approvals_with_context(self) -> list[dict[str, Any]]:
+        return [
+            {
+                **approval,
+                "run_task": RUN["task"],
+                "requested_role": RUN["role"],
+                "policy_reason": "The 'operator' role may call github.create_issue only after "
+                "a human approves it.",
+            }
+            for approval in self.list_pending_approvals()
         ]
 
     def decide(self, approval_id: str, approved: bool, reason: str | None) -> dict[str, Any]:
