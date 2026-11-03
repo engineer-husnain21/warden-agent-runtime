@@ -85,6 +85,17 @@ class FakeWardenApiClient:
             }
         ]
 
+    def get_overview(self, limit: int = 50) -> dict[str, Any]:
+        runs = self.list_runs(limit)
+        return {
+            "runs": runs,
+            "total_runs": len(runs),
+            "awaiting_approval": 1,
+            "completed": 0,
+            "total_cost_usd": 0.00157,
+            "active": True,
+        }
+
     def list_pending_approvals_with_context(self) -> list[dict[str, Any]]:
         return [
             {

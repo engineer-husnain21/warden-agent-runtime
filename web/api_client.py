@@ -5,6 +5,8 @@ import httpx
 from web.warden_api_error import WardenApiError
 
 API_PREFIX = "/api/v1"
+# Runs in these states can still change, so the home page keeps refreshing while any exist.
+ACTIVE_STATUSES = frozenset({"pending", "running", "awaiting_approval"})
 
 
 class WardenApiClient:
@@ -52,6 +54,24 @@ class WardenApiClient:
     def list_pending_approvals(self) -> list[dict[str, Any]]:
         result: list[dict[str, Any]] = self._request("GET", "/approvals")
         return result
+
+    def get_overview(self, limit: int = 50) -> dict[str, Any]:
+        """Recent runs plus home-page totals. `active` is true while any run still needs the
+        page to refresh (pending, running or waiting for approval).
+
+        Total cost sums the per-run metrics of the listed runs (one request per run).
+        """
+        runs = self.list_runs(limit)
+        statuses = [run["status"] for run in runs]
+        total_cost = sum(self.get_metrics(run["id"])["total_cost_usd"] for run in runs)
+        return {
+            "runs": runs,
+            "total_runs": len(runs),
+            "awaiting_approval": statuses.count("awaiting_approval"),
+            "completed": statuses.count("completed"),
+            "total_cost_usd": total_cost,
+            "active": any(status in ACTIVE_STATUSES for status in statuses),
+        }
 
     def list_pending_approvals_with_context(self) -> list[dict[str, Any]]:
         """Pending approvals plus what a reviewer needs: the run's task, the requester's role

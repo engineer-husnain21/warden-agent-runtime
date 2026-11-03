@@ -90,3 +90,39 @@ def test_api_client_when_approvals_listed_with_context_adds_task_role_and_reason
     assert enriched[0]["requested_role"] == "operator"
     assert "'operator' role may call github.create_issue" in enriched[0]["policy_reason"]
     assert calls == ["/api/v1/approvals", "/api/v1/agent-runs/r1"]  # run fetched once
+
+
+def test_api_client_when_overview_requested_counts_runs_and_sums_cost() -> None:
+    runs = [
+        {"id": "r1", "status": "completed"},
+        {"id": "r2", "status": "awaiting_approval"},
+        {"id": "r3", "status": "failed"},
+    ]
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/metrics"):
+            return httpx.Response(200, json={"total_cost_usd": 0.001})
+        return httpx.Response(200, json=runs)
+
+    client = WardenApiClient("http://api.test", "k", transport=httpx.MockTransport(handler))
+
+    overview = client.get_overview()
+
+    assert (overview["total_runs"], overview["awaiting_approval"], overview["completed"]) == (
+        3,
+        1,
+        1,
+    )
+    assert overview["total_cost_usd"] == pytest.approx(0.003)
+    assert overview["active"] is True
+
+
+def test_api_client_when_all_runs_finished_overview_is_not_active() -> None:
+    def handler(request: httpx.Request) -> httpx.Response:
+        if request.url.path.endswith("/metrics"):
+            return httpx.Response(200, json={"total_cost_usd": 0.0})
+        return httpx.Response(200, json=[{"id": "r1", "status": "completed"}])
+
+    client = WardenApiClient("http://api.test", "k", transport=httpx.MockTransport(handler))
+
+    assert client.get_overview()["active"] is False

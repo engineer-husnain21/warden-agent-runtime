@@ -40,3 +40,21 @@ def test_app_when_api_down_shows_error() -> None:
     app = _run(FakeWardenApiClient(fail_with="API not reachable"))
 
     assert "Could not load runs" in app.error[0].value
+
+
+def test_app_when_loaded_shows_stats_row() -> None:
+    app = _run(FakeWardenApiClient())
+
+    stats = {metric.label: metric.value for metric in app.metric}
+    assert stats == {
+        "Total runs": "1",
+        "Awaiting approval": "1",
+        "Completed": "0",
+        "Total cost": "$0.00157",
+    }
+
+
+def test_app_when_a_run_is_active_says_it_auto_refreshes() -> None:
+    app = _run(FakeWardenApiClient())
+
+    assert any("Refreshing every 5 s" in caption.value for caption in app.caption)
