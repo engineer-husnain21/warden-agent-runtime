@@ -65,5 +65,6 @@ def test_app_when_runs_exist_shows_status_donut() -> None:
     app = _run(FakeWardenApiClient())
 
     [donut] = app.get("vega_lite_chart")
-    assert '"Runs by status"' in donut.proto.spec
     assert '"arc"' in donut.proto.spec
+    # The title is a Streamlit subheader, not a Vega title that can be clipped at the top.
+    assert [header.value for header in app.subheader] == ["Recent runs", "Runs by status"]

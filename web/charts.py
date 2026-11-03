@@ -69,6 +69,6 @@ def status_donut_chart(status_counts: dict[str, int]) -> alt.Chart | None:
             ),
             tooltip=["status:N", "runs:Q"],
         )
-        .properties(title="Runs by status", height=260)
+        .properties(height=260)
     )
     return chart
