@@ -48,6 +48,18 @@ def test_run_detail_when_loaded_draws_run_flow_chart() -> None:
     assert "start -> s0;" in chart.proto.spec
 
 
+def test_run_detail_when_steps_used_llm_shows_tokens_and_cost_charts() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    specs = [chart.proto.spec for chart in page.get("vega_lite_chart")]
+    assert len(specs) == 2
+    assert '"Tokens per step"' in specs[0]
+    assert '"Cost per step"' in specs[1]
+
+
 def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient()

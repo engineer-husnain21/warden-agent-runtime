@@ -3,6 +3,7 @@
 import streamlit as st
 
 from web import theme
+from web.charts import step_usage_charts
 from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.run_flow import build_run_flow_dot
@@ -70,6 +71,13 @@ st.markdown(
 
 st.subheader("Run flow")
 st.graphviz_chart(build_run_flow_dot(steps, run["status"]), width="stretch")
+
+usage_charts = step_usage_charts(steps)
+if usage_charts is not None:
+    st.subheader("Tokens and cost per step")
+    tokens_col, cost_col = st.columns(2)
+    tokens_col.altair_chart(usage_charts[0], width="stretch")
+    cost_col.altair_chart(usage_charts[1], width="stretch")
 
 st.subheader("Report")
 if report.get("report"):
