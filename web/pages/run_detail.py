@@ -6,6 +6,7 @@ from web import theme
 from web.charts import step_usage_charts
 from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
+from web.report_format import demote_headings
 from web.run_flow import build_run_flow_dot
 from web.trace_format import expander_title, timeline_html, trace_row
 from web.warden_api_error import WardenApiError
@@ -81,7 +82,7 @@ if usage_charts is not None:
 
 st.subheader("Report")
 if report.get("report"):
-    st.markdown(report["report"])
+    st.markdown(demote_headings(report["report"]))
 else:
     st.info("No report yet: the run is still going or waiting for approval.")
 

@@ -60,6 +60,16 @@ def test_run_detail_when_steps_used_llm_shows_tokens_and_cost_charts() -> None:
     assert '"Cost per step"' in specs[1]
 
 
+def test_run_detail_when_report_has_headings_shows_them_below_report_heading() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    report = next(block.value for block in page.markdown if "All good." in block.value)
+    assert report.startswith("#### Summary")
+
+
 def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient()
