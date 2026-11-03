@@ -4,6 +4,7 @@ import pytest
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from web import theme
 from web.console_layout import short_time, status_pill
 
 WEB = Path(__file__).resolve().parents[3] / "web"
@@ -26,11 +27,11 @@ def test_every_page_when_rendered_shows_warden_header(page_path: Path) -> None:
 @pytest.mark.parametrize(
     ("status", "color"),
     [
-        ("pending", "#8A90A0"),
-        ("running", "#4C8DFF"),
-        ("awaiting_approval", "#F5A524"),
-        ("completed", "#2EB67D"),
-        ("failed", "#F04438"),
+        ("pending", theme.MUTED),
+        ("running", theme.BLUE),
+        ("awaiting_approval", theme.AMBER),
+        ("completed", theme.GREEN),
+        ("failed", theme.RED),
     ],
 )
 def test_status_pill_when_run_status_uses_its_colour(status: str, color: str) -> None:
@@ -43,7 +44,7 @@ def test_status_pill_when_run_status_uses_its_colour(status: str, color: str) ->
 def test_status_pill_when_status_unknown_falls_back_to_grey_and_escapes() -> None:
     pill = status_pill("<weird>")
 
-    assert "--pill: #8A90A0" in pill
+    assert f"--pill: {theme.MUTED}" in pill
     assert "&lt;weird&gt;" in pill
 
 

@@ -3,6 +3,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from web import theme
 
 APP = Path(__file__).resolve().parents[3] / "web" / "app.py"
 
@@ -21,7 +22,7 @@ def test_app_when_runs_exist_shows_a_row_with_status_pill() -> None:
     pills = [b.value for b in app.markdown if 'class="warden-pill"' in b.value]
     assert len(pills) == 1
     assert "awaiting approval" in pills[0]
-    assert "#F5A524" in pills[0]  # amber
+    assert theme.AMBER in pills[0]
     assert app.button(key="open-r1") is not None
 
 

@@ -5,7 +5,7 @@ Nodes are coloured by step status; approval steps get an amber double border.
 
 from typing import Any
 
-from web.console_layout import STATUS_COLORS
+from web import theme
 from web.trace_format import decision_label
 
 KIND_LABELS = {
@@ -17,10 +17,10 @@ KIND_LABELS = {
     "review": "Review",
     "report": "Report",
 }
-APPROVAL_COLOR = "#F5A524"
-_MUTED = "#8A90A0"
-_SURFACE = "#15171C"
-_TEXT = "#E6E8EE"
+APPROVAL_COLOR = theme.AMBER
+_MUTED = theme.MUTED
+_SURFACE = theme.SURFACE
+_TEXT = theme.TEXT
 
 
 def build_run_flow_dot(steps: list[dict[str, Any]], run_status: str) -> str:
@@ -38,7 +38,7 @@ def build_run_flow_dot(steps: list[dict[str, Any]], run_status: str) -> str:
         lines.append(f"  {node} [{_node_attributes(step)}];")
         lines.append(f"  {previous} -> {node};")
         previous = node
-    end_color = STATUS_COLORS.get(run_status, _MUTED)
+    end_color = theme.status_color(run_status)
     lines.append(
         f'  end [label="{_quote(run_status.replace("_", " "))}", shape=box, '
         f'color="{end_color}", fontcolor="{end_color}", fillcolor="{end_color}22"];'
@@ -49,7 +49,7 @@ def build_run_flow_dot(steps: list[dict[str, Any]], run_status: str) -> str:
 
 
 def _node_attributes(step: dict[str, Any]) -> str:
-    color = STATUS_COLORS.get(step["status"], _MUTED)
+    color = theme.status_color(step["status"])
     label_lines = [KIND_LABELS.get(step["kind"], step["kind"])]
     if step.get("tool_name"):
         label_lines.append(step["tool_name"])

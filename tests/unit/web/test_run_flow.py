@@ -1,5 +1,6 @@
 from typing import Any
 
+from web import theme
 from web.run_flow import APPROVAL_COLOR, build_run_flow_dot
 
 
@@ -41,7 +42,7 @@ def test_build_run_flow_dot_when_step_failed_colours_it_red() -> None:
     dot = build_run_flow_dot(STEPS, "completed")
 
     failed_node = next(line for line in dot.splitlines() if line.strip().startswith("s1 ["))
-    assert 'color="#F04438"' in failed_node
+    assert f'color="{theme.RED}"' in failed_node
     assert "warehouse.run_query" in failed_node
 
 
