@@ -37,5 +37,5 @@ def test_approvals_when_pending_shows_tool_and_arguments() -> None:
     page = _page(FakeWardenApiClient())
 
     assert not page.exception
-    assert "github.create_issue" in page.markdown[0].value
+    assert any("github.create_issue" in block.value for block in page.markdown)
     assert page.json[0].value is not None

@@ -5,10 +5,11 @@ Run: `uv run streamlit run web/app.py` (the API must be running).
 
 import streamlit as st
 
+from web.console_layout import setup_page
 from web.console_state import get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
-st.set_page_config(page_title="Warden console", layout="wide")
+setup_page("Agent runs")
 render_sidebar()
 api = get_api_client()
 
