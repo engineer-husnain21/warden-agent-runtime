@@ -6,6 +6,7 @@ The LLM is real: its provider and key still come from the environment / `.env`.
 """
 
 import json
+import logging
 import os
 import secrets
 from collections.abc import AsyncIterator
@@ -23,6 +24,7 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 API_BASE_URL = "http://warden.eval/api/v1"
 # Groq's per-minute token limit is hit often during a suite; wait it out instead of failing.
 LLM_MAX_ATTEMPTS = 8
+QUIET_LOGGERS = ("httpx", "app.middlewares.request_id_middleware")
 
 
 def prepare_environment(work_dir: Path) -> dict[Role, str]:
@@ -63,6 +65,8 @@ async def eval_client() -> AsyncIterator[httpx.AsyncClient]:
     from app.main import create_app  # imported late: the app reads settings when imported
 
     app = create_app()
+    for name in QUIET_LOGGERS:  # one line per HTTP call would bury the eval results
+        logging.getLogger(name).setLevel(logging.WARNING)
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(
