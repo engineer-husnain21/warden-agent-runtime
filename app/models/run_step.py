@@ -21,6 +21,8 @@ class RunStep(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     run_id: Mapped[str] = mapped_column(ForeignKey("agent_runs.id", ondelete="CASCADE"), index=True)
     position: Mapped[int] = mapped_column(Integer)
+    # Which plan step this event belongs to (0-based); None for run-level events (plan, report).
+    step_index: Mapped[int | None] = mapped_column(Integer, default=None)
     kind: Mapped[RunStepKind] = mapped_column(str_enum_type(RunStepKind))
     status: Mapped[RunStepStatus] = mapped_column(str_enum_type(RunStepStatus))
     agent: Mapped[str | None] = mapped_column(String(50), default=None)

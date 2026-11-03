@@ -54,6 +54,19 @@ def test_alembic_downgrade_when_applied_drops_all_tables(tmp_path: Path) -> None
     assert not APP_TABLES & _table_names(db_path)
 
 
+def test_alembic_downgrade_when_0002_reverted_drops_step_index(tmp_path: Path) -> None:
+    db_path = tmp_path / "warden.db"
+    config = _alembic_config(db_path)
+    command.upgrade(config, "head")
+
+    command.downgrade(config, "0001")
+
+    with sqlite3.connect(db_path) as connection:
+        columns = {row[1] for row in connection.execute("PRAGMA table_info(run_steps)")}
+    assert "step_index" not in columns
+    assert "position" in columns
+
+
 def test_migrations_when_applied_match_models(tmp_path: Path) -> None:
     db_path = tmp_path / "warden.db"
     command.upgrade(_alembic_config(db_path), "head")
