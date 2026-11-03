@@ -3,6 +3,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from tests.unit.web.page_helpers import metric_cards
 from web import theme
 
 APP = Path(__file__).resolve().parents[3] / "web" / "app.py"
@@ -43,15 +44,14 @@ def test_app_when_api_down_shows_error() -> None:
     assert "Could not load runs" in app.error[0].value
 
 
-def test_app_when_loaded_shows_stats_row() -> None:
+def test_app_when_loaded_shows_coloured_stats_row() -> None:
     app = _run(FakeWardenApiClient())
 
-    stats = {metric.label: metric.value for metric in app.metric}
-    assert stats == {
-        "Total runs": "1",
-        "Awaiting approval": "1",
-        "Completed": "0",
-        "Total cost": "$0.00157",
+    assert metric_cards(app) == {
+        "Total runs": ("1", theme.INDIGO),
+        "Awaiting approval": ("1", theme.AMBER),
+        "Completed": ("0", theme.GREEN),
+        "Total cost": ("$0.00157", theme.TEAL),
     }
 
 

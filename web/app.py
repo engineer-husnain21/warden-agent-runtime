@@ -7,7 +7,8 @@ from typing import Any
 
 import streamlit as st
 
-from web.console_layout import setup_page, short_time, status_pill
+from web import theme
+from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
@@ -49,17 +50,21 @@ def overview_panel() -> None:
     if polling and not overview["active"]:
         st.rerun()  # nothing left to watch: a full rerun turns polling off
 
-    cards = st.columns(4)
-    cards[0].metric(
-        "Total runs", overview["total_runs"], icon=":material/play_circle:", border=True
-    )
-    cards[1].metric(
-        "Awaiting approval", overview["awaiting_approval"], icon=":material/pan_tool:", border=True
-    )
-    cards[2].metric("Completed", overview["completed"], icon=":material/check_circle:", border=True)
-    cards[3].metric(
-        "Total cost", f"${overview['total_cost_usd']:.5f}", icon=":material/payments:", border=True
-    )
+    colors = theme.HOME_METRIC_COLORS
+    cards = [
+        metric_card("Total runs", str(overview["total_runs"]), "play", colors["total_runs"]),
+        metric_card(
+            "Awaiting approval",
+            str(overview["awaiting_approval"]),
+            "shield",
+            colors["awaiting_approval"],
+        ),
+        metric_card("Completed", str(overview["completed"]), "check", colors["completed"]),
+        metric_card(
+            "Total cost", f"${overview['total_cost_usd']:.5f}", "coins", colors["total_cost"]
+        ),
+    ]
+    st.markdown(metric_row(cards), unsafe_allow_html=True)
 
     st.subheader("Recent runs")
     if overview["active"]:
