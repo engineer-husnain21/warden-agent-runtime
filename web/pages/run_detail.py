@@ -2,8 +2,8 @@
 
 import streamlit as st
 
-from web.console_layout import setup_page
-from web.console_state import get_api_client, render_sidebar
+from web.console_layout import setup_page, short_time, status_pill
+from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.trace_format import expander_title, trace_row
 from web.warden_api_error import WardenApiError
 
@@ -23,8 +23,15 @@ if not runs:
     st.info("No runs yet. Start one on the home page.")
     st.stop()
 
-labels = {run["id"]: f"{run['status']:<18} {run['task'][:70]}  ({run['id'][:8]})" for run in runs}
-run_id = st.selectbox("Run", options=list(labels), format_func=lambda key: labels[key])
+labels = {run["id"]: f"{run['task'][:70]}  ({run['id'][:8]})" for run in runs}
+options = list(labels)
+selected = st.session_state.get(SELECTED_RUN_KEY)
+run_id = st.selectbox(
+    "Run",
+    options=options,
+    index=options.index(selected) if selected in options else 0,
+    format_func=lambda key: labels[key],
+)
 st.button("Refresh")
 
 run = api.get_run(run_id)
@@ -32,7 +39,11 @@ metrics = api.get_metrics(run_id)
 report = api.get_report(run_id)
 steps = api.get_steps(run_id)
 
-st.caption(f"Requested by {run['requested_by']} ({run['role']}) · status **{run['status']}**")
+st.markdown(
+    f"{status_pill(run['status'])}&nbsp; requested by {run['requested_by']} ({run['role']})"
+    f" · {short_time(run['created_at'])}",
+    unsafe_allow_html=True,
+)
 if run.get("error"):
     st.error(run["error"])
 

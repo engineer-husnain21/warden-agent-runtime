@@ -13,12 +13,16 @@ def _run(fake: FakeWardenApiClient) -> AppTest:
     return app.run()
 
 
-def test_app_when_runs_exist_shows_runs_table() -> None:
+def test_app_when_runs_exist_shows_a_row_with_status_pill() -> None:
     app = _run(FakeWardenApiClient())
 
     assert not app.exception
     assert app.title[0].value == "Agent runs"
-    assert len(app.dataframe) == 1
+    pills = [b.value for b in app.markdown if 'class="warden-pill"' in b.value]
+    assert len(pills) == 1
+    assert "awaiting approval" in pills[0]
+    assert "#F5A524" in pills[0]  # amber
+    assert app.button(key="open-r1") is not None
 
 
 def test_app_when_task_submitted_creates_run() -> None:

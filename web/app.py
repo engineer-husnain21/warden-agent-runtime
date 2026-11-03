@@ -5,8 +5,8 @@ Run: `uv run streamlit run web/app.py` (the API must be running).
 
 import streamlit as st
 
-from web.console_layout import setup_page
-from web.console_state import get_api_client, render_sidebar
+from web.console_layout import setup_page, short_time, status_pill
+from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
 setup_page("Agent runs")
@@ -36,22 +36,17 @@ except WardenApiError as error:
     st.error(f"Could not load runs: {error.message}")
     runs = []
 
-if runs:
-    st.dataframe(
-        [
-            {
-                "id": run["id"],
-                "status": run["status"],
-                "task": run["task"],
-                "requested by": f"{run['requested_by']} ({run['role']})",
-                "created": run["created_at"],
-            }
-            for run in runs
-        ],
-        hide_index=True,
-        width="stretch",
-        # Wide enough for "awaiting_approval" without cutting it off.
-        column_config={"status": st.column_config.TextColumn("status", width="medium")},
-    )
-else:
+if not runs:
     st.info("No runs yet.")
+
+for run in runs:
+    with st.container(border=True):
+        pill_col, task_col, meta_col, open_col = st.columns(
+            [1.4, 6, 2.2, 1], vertical_alignment="center"
+        )
+        pill_col.markdown(status_pill(run["status"]), unsafe_allow_html=True)
+        task_col.markdown(f"**{run['task']}**")
+        meta_col.caption(f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}")
+        if open_col.button("Open", key=f"open-{run['id']}"):
+            st.session_state[SELECTED_RUN_KEY] = run["id"]
+            st.switch_page("pages/run_detail.py")
