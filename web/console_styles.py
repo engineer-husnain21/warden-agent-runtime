@@ -32,6 +32,21 @@ _RULES = """
   font-size: 0.78rem; font-weight: 600; white-space: nowrap;
   color: var(--pill); background: color-mix(in srgb, var(--pill) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--pill) 40%, transparent); }
+.w-metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 0.9rem; margin: 0.5rem 0 1.25rem; }
+.w-metric { display: flex; align-items: center; gap: 0.85rem; padding: 0.95rem 1.1rem;
+  border-radius: 0.85rem;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--c) 24%, transparent),
+    color-mix(in srgb, var(--c) 5%, transparent));
+  border: 1px solid color-mix(in srgb, var(--c) 50%, transparent);
+  box-shadow: 0 0 22px color-mix(in srgb, var(--c) 22%, transparent); }
+.w-metric-icon { flex: none; width: 2.5rem; height: 2.5rem; border-radius: 0.65rem;
+  display: flex; align-items: center; justify-content: center; color: var(--c);
+  background: color-mix(in srgb, var(--c) 20%, transparent); }
+.w-metric-icon svg { width: 1.35rem; height: 1.35rem; }
+.w-metric-label { color: var(--w-muted); font-size: 0.8rem; font-weight: 500; }
+.w-metric-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em;
+  line-height: 1.2; color: var(--w-text); }
 .warden-timeline { position: relative; margin: 0.25rem 0 1rem 0.9rem;
   border-left: 1px solid var(--w-border); }
 .warden-timeline .tl-item { position: relative; display: flex; gap: 0.75rem;

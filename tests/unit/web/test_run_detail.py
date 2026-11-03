@@ -3,6 +3,8 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from tests.unit.web.page_helpers import metric_cards
+from web import theme
 
 PAGE = Path(__file__).resolve().parents[3] / "web" / "pages" / "run_detail.py"
 
@@ -15,19 +17,24 @@ def test_run_detail_when_loaded_shows_steps_table() -> None:
 
     assert not page.exception
     assert len(page.dataframe) == 1
-    assert [metric.value for metric in page.metric] == ["6", "6,150", "6.2 s", "$0.00157"]
+    values = [value for value, _ in metric_cards(page).values()]
+    assert values == ["6", "6,150", "6.2 s", "$0.00157"]
     assert any("All good." in block.value for block in page.markdown)
 
 
-def test_run_detail_when_loaded_shows_bordered_metric_cards_with_icons() -> None:
+def test_run_detail_when_loaded_shows_one_colour_per_metric_card() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient()
 
     page.run()
 
-    assert [m.label for m in page.metric] == ["LLM calls", "Tokens", "LLM latency", "Est. cost"]
-    assert all(m.proto.icon.startswith(":material/") for m in page.metric)
-    assert all(m.proto.show_border for m in page.metric)
+    colors = {label: color for label, (_, color) in metric_cards(page).items()}
+    assert colors == {
+        "LLM calls": theme.BLUE,
+        "Tokens": theme.PURPLE,
+        "LLM latency": theme.AMBER,
+        "Est. cost": theme.GREEN,
+    }
 
 
 def test_run_detail_when_loaded_draws_run_flow_chart() -> None:

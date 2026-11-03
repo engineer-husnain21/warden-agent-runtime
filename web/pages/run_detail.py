@@ -2,7 +2,8 @@
 
 import streamlit as st
 
-from web.console_layout import setup_page, short_time, status_pill
+from web import theme
+from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.run_flow import build_run_flow_dot
 from web.trace_format import expander_title, timeline_html, trace_row
@@ -49,17 +50,22 @@ if run.get("error"):
     st.error(run["error"])
 
 tokens = metrics["total_input_tokens"] + metrics["total_output_tokens"]
-cards = st.columns(4)
-cards[0].metric("LLM calls", metrics["llm_calls"], icon=":material/smart_toy:", border=True)
-cards[1].metric("Tokens", f"{tokens:,}", icon=":material/token:", border=True)
-cards[2].metric(
-    "LLM latency",
-    f"{metrics['total_latency_ms'] / 1000:.1f} s",
-    icon=":material/timer:",
-    border=True,
-)
-cards[3].metric(
-    "Est. cost", f"${metrics['total_cost_usd']:.5f}", icon=":material/payments:", border=True
+colors = theme.RUN_METRIC_COLORS
+st.markdown(
+    metric_row(
+        [
+            metric_card("LLM calls", str(metrics["llm_calls"]), "bot", colors["llm_calls"]),
+            metric_card("Tokens", f"{tokens:,}", "hash", colors["tokens"]),
+            metric_card(
+                "LLM latency",
+                f"{metrics['total_latency_ms'] / 1000:.1f} s",
+                "clock",
+                colors["latency"],
+            ),
+            metric_card("Est. cost", f"${metrics['total_cost_usd']:.5f}", "dollar", colors["cost"]),
+        ]
+    ),
+    unsafe_allow_html=True,
 )
 
 st.subheader("Run flow")

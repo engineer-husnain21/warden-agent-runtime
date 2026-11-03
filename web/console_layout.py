@@ -5,6 +5,7 @@ from html import escape
 import streamlit as st
 
 from web.console_styles import build_styles
+from web.icons import icon_svg
 from web.theme import status_color
 
 BRAND = "Warden"
@@ -15,6 +16,21 @@ def status_pill(status: str) -> str:
     """HTML for a coloured status pill; render with `st.markdown(..., unsafe_allow_html=True)`."""
     label = escape(status.replace("_", " "))
     return f'<span class="warden-pill" style="--pill: {status_color(status)}">{label}</span>'
+
+
+def metric_card(label: str, value: str, icon: str, color: str) -> str:
+    """One coloured stat card (soft gradient, glowing border, coloured icon) as HTML."""
+    return (
+        f'<div class="w-metric" style="--c: {color}">'
+        f'<div class="w-metric-icon">{icon_svg(icon)}</div>'
+        f'<div><div class="w-metric-label">{escape(label)}</div>'
+        f'<div class="w-metric-value">{escape(value)}</div></div></div>'
+    )
+
+
+def metric_row(cards: list[str]) -> str:
+    """Lay metric cards out in a responsive row; render with unsafe_allow_html=True."""
+    return f'<div class="w-metric-row">{"".join(cards)}</div>'
 
 
 def short_time(iso_timestamp: str) -> str:
