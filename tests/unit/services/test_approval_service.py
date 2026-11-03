@@ -70,6 +70,21 @@ async def test_decide_when_admin_approves_resumes_run_to_completion(
     assert [e.action for e in granted] == [AuditAction.APPROVAL_GRANTED]
 
 
+async def test_decide_when_returned_run_is_already_running(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """No window where the run still says awaiting_approval but nothing is pending."""
+    approvals, runs, *_ = await _paused_run(
+        session_factory, [review(True), "## Summary\nOpened issue #7."]
+    )
+    [pending] = await approvals.list_pending()
+
+    await approvals.decide(pending.id, ApprovalDecisionRequest(approved=True), ADA)
+
+    assert (await runs.get_run(pending.run_id)).status is AgentRunStatus.RUNNING
+    await runs.drain()
+
+
 async def test_decide_when_rejected_completes_run_without_tool_call(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:

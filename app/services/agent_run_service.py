@@ -84,6 +84,12 @@ class AgentRunService:
     def resume_in_background(self, run_id: str, decision: ApprovalDecision | None = None) -> None:
         self._spawn(self.resume_run(run_id, decision))
 
+    async def resume_after_decision(self, run_id: str, decision: ApprovalDecision) -> None:
+        """Mark the run running *before* returning, so nobody sees a run that still says
+        awaiting_approval while its approval is already decided; then resume it."""
+        await self._set_status(run_id, AgentRunStatus.RUNNING)
+        self.resume_in_background(run_id, decision)
+
     async def drain(self) -> None:
         """Wait until every background run task has finished (tests and shutdown)."""
         while self._background:
