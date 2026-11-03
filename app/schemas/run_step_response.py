@@ -13,6 +13,7 @@ class RunStepResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     position: int
+    step_index: int | None
     kind: RunStepKind
     status: RunStepStatus
     agent: str | None
