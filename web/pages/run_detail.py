@@ -101,8 +101,9 @@ with st.expander("Table view", icon=":material/table_rows:"):
         },
     )
 
-st.caption("Step details")
-for step in steps:
-    if step["tool_arguments"] or step["output"]:
-        with st.expander(expander_title(step)):
-            st.json({"arguments": step["tool_arguments"], "output": step["output"]})
+detailed_steps = [step for step in steps if step["tool_arguments"] or step["output"]]
+if detailed_steps:
+    with st.expander("Step details", icon=":material/data_object:"):
+        for step in detailed_steps:
+            st.markdown(f"**{expander_title(step)}**")
+            st.json({"arguments": step["tool_arguments"], "output": step["output"]}, expanded=1)

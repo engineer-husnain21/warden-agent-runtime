@@ -70,6 +70,16 @@ def test_run_detail_when_report_has_headings_shows_them_below_report_heading() -
     assert report.startswith("#### Summary")
 
 
+def test_run_detail_when_steps_have_details_groups_them_in_one_expander() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    assert [expander.label for expander in page.expander] == ["Table view", "Step details"]
+    assert len(page.expander[1].json) == 1
+
+
 def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient()
