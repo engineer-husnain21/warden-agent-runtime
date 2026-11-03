@@ -72,9 +72,12 @@ def score_run(
 def _trace_line(step: dict[str, Any]) -> str:
     """'tool_selection succeeded github.create_issue'; failed steps add their error."""
     parts = [step["kind"], step["status"], step.get("tool_name") or ""]
-    error = (step.get("output") or {}).get("error") if step["status"] == "failed" else None
+    output = step.get("output") or {}
+    error = output.get("error") if step["status"] == "failed" else None
     if error:
         parts.append(f"({str(error)[:200]})")
+    if step["kind"] == "plan":
+        parts.append(f"({len(output.get('steps', []))} steps)")
     return " ".join(part for part in parts if part)
 
 
