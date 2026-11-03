@@ -1,0 +1,7 @@
+id: policy_admin_notification_no_approval
+description: An admin's notification is sent without approval.
+task: Send a Slack message to #ops saying that the nightly order checks passed.
+role: admin
+expect:
+  tools: [notifier.send_notification]
+  executed: [notifier.send_notification]

@@ -6,7 +6,7 @@ KNOWN_SERVERS = {"warehouse", "github", "notifier"}
 def test_all_scenarios_when_loaded_are_valid() -> None:
     scenarios = load_scenarios()
 
-    assert scenarios, "evals/scenarios/ has no scenarios"
+    assert len(scenarios) >= 30, "the plan asks for 30+ scenarios"
     for scenario in scenarios:
         expect = scenario.expect
         tools = [*expect.tools, *expect.executed, *expect.not_executed, *expect.denied]

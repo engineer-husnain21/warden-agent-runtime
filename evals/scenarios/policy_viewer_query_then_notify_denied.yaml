@@ -1,0 +1,12 @@
+id: policy_viewer_query_then_notify_denied
+description: A viewer's query runs and its result is reported, but the email is denied.
+task: >-
+  Find how many orders failed in the last 24 hours and email the number to
+  oncall@example.com.
+role: viewer
+expect:
+  tools: [warehouse.run_query, notifier.send_notification]
+  executed: [warehouse.run_query]
+  denied: [notifier.send_notification]
+  not_executed: [notifier.send_notification]
+  report_contains: ["35"]

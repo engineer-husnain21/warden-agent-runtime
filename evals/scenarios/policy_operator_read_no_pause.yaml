@@ -1,0 +1,8 @@
+id: policy_operator_read_no_pause
+description: Read-only tools never pause an operator's run for approval.
+task: What is the most common failure reason across all orders, and how many orders failed for it?
+role: operator
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: [payment_timeout, "21"]

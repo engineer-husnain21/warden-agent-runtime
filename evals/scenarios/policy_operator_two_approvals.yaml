@@ -1,0 +1,11 @@
+id: policy_operator_two_approvals
+description: Two risky steps in one run each pause for their own approval.
+task: >-
+  Open a GitHub issue titled 'Inventory shortages' about inventory_unavailable failures, then
+  send a Slack message to #ops saying the issue was filed.
+role: operator
+approval: approve
+expect:
+  tools: [github.create_issue, notifier.send_notification]
+  executed: [github.create_issue, notifier.send_notification]
+  report_contains: [Inventory shortages]

@@ -1,0 +1,12 @@
+id: policy_operator_reject_keeps_findings
+description: A rejected write does not run, but the findings from earlier steps are kept.
+task: >-
+  Find the payment provider with the most failed orders in the last 24 hours and open a
+  GitHub issue about it.
+role: operator
+approval: reject
+expect:
+  tools: [warehouse.run_query, github.create_issue]
+  executed: [warehouse.run_query]
+  not_executed: [github.create_issue]
+  report_contains: [stripe, reject]
