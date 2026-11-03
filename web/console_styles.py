@@ -21,12 +21,13 @@ _PALETTE = {
 }
 
 _RULES = """
-.warden-header { display: flex; align-items: baseline; gap: 0.75rem;
-  padding: 0.25rem 0 0.75rem; margin-bottom: 0.5rem; border-bottom: 1px solid var(--w-border); }
-.warden-header .brand { font-size: 1.35rem; font-weight: 700; letter-spacing: -0.02em; }
-.warden-header .brand::before { content: ""; display: inline-block; width: 0.6rem; height: 0.6rem;
-  margin-right: 0.5rem; border-radius: 0.15rem; background: var(--w-indigo); }
-.warden-header .tagline { color: var(--w-muted); font-size: 0.9rem; }
+.warden-header { display: flex; align-items: baseline; gap: 0.9rem; flex-wrap: wrap;
+  padding: 1.1rem 1.5rem; margin-bottom: 1rem; border-radius: 0.9rem;
+  background: linear-gradient(115deg, var(--w-indigo) 0%, var(--w-purple) 55%, var(--w-pink) 100%);
+  box-shadow: 0 8px 30px color-mix(in srgb, var(--w-purple) 30%, transparent); }
+.warden-header .brand { font-size: 2.1rem; font-weight: 800; letter-spacing: -0.03em;
+  line-height: 1; color: #FFFFFF; }
+.warden-header .tagline { color: rgba(255, 255, 255, 0.85); font-size: 1rem; font-weight: 500; }
 .warden-pill { display: inline-block; padding: 0.1rem 0.6rem; border-radius: 999px;
   font-size: 0.78rem; font-weight: 600; white-space: nowrap;
   color: var(--pill); background: color-mix(in srgb, var(--pill) 16%, transparent);

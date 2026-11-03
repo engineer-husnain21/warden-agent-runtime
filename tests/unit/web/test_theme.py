@@ -34,3 +34,12 @@ def test_build_styles_when_called_exposes_palette_as_css_variables() -> None:
 
     assert f"--w-indigo: {theme.INDIGO};" in styles
     assert f"--w-amber: {theme.AMBER};" in styles
+
+
+def test_build_styles_when_called_paints_header_with_brand_gradient() -> None:
+    styles = build_styles()
+
+    header_rule = styles[styles.index(".warden-header {") :].split("}", 1)[0]
+    assert "linear-gradient" in header_rule
+    for name in ("--w-indigo", "--w-purple", "--w-pink"):
+        assert name in header_rule
