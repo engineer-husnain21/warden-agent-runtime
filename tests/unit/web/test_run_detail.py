@@ -19,6 +19,27 @@ def test_run_detail_when_loaded_shows_steps_table() -> None:
     assert any("All good." in block.value for block in page.markdown)
 
 
+def test_run_detail_when_loaded_shows_bordered_metric_cards_with_icons() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+
+    page.run()
+
+    assert [m.label for m in page.metric] == ["LLM calls", "Tokens", "LLM latency", "Est. cost"]
+    assert all(m.proto.icon.startswith(":material/") for m in page.metric)
+    assert all(m.proto.show_border for m in page.metric)
+
+
+def test_run_detail_when_opened_from_home_preselects_that_run() -> None:
+    page = AppTest.from_file(PAGE, default_timeout=30)
+    page.session_state["api_client"] = FakeWardenApiClient()
+    page.session_state["selected_run_id"] = "r1"
+
+    page.run()
+
+    assert page.selectbox[0].value == "r1"
+
+
 def test_run_detail_when_api_down_shows_error() -> None:
     page = AppTest.from_file(PAGE, default_timeout=30)
     page.session_state["api_client"] = FakeWardenApiClient(fail_with="API not reachable")
