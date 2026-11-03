@@ -90,9 +90,22 @@ def test_build_run_flow_dot_when_approval_highlights_it_with_decider() -> None:
 
 
 def test_build_run_flow_dot_when_waiting_for_approval_says_waiting() -> None:
-    dot = build_run_flow_dot(STEPS[:7], "awaiting_approval")
+    # While paused, the service records an approval event that has no decision yet.
+    paused = _step(
+        7,
+        "approval",
+        "awaiting_approval",
+        step_index=1,
+        tool_name=ISSUE,
+        policy_decision="needs_approval",
+        output={"step": "Open an issue"},
+    )
 
-    assert "Step 2: github.create_issue - awaiting approval" in _node(dot, "s1")
+    dot = build_run_flow_dot([*STEPS[:7], paused], "awaiting_approval")
+
+    node = _node(dot, "s1")
+    assert "Step 2: github.create_issue - awaiting approval" in node
+    assert "peripheries=2" in node
     assert "s1 -> end;" in dot
 
 

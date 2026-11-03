@@ -107,8 +107,9 @@ def _step_label(index: int, group: Group) -> str:
     tools = [step["tool_name"] for step in group if step.get("tool_name")]
     title = f"Step {index + 1}: {tools[-1] if tools else 'no tool selected'}"
     approval = next((step for step in reversed(group) if step["kind"] == "approval"), None)
-    if approval is not None:
-        outcome = decision_label(approval) or "waiting"
+    decided = approval is not None and "approved" in (approval.get("output") or {})
+    if approval is not None and decided:
+        outcome = decision_label(approval) or "decided"
     else:
         outcome = group[-1]["status"].replace("_", " ")
     attempts = sum(step["kind"] == "tool_selection" for step in group)
