@@ -29,6 +29,19 @@ async def test_send_notification_when_called_writes_outbox_row(tmp_path: Path) -
     assert rows == [("slack", "#payments", "Failed orders")]
 
 
+async def test_send_notification_description_when_listed_names_email_and_slack(
+    tmp_path: Path,
+) -> None:
+    # The planner sees only the description; without "Slack" it judged Slack tasks impossible.
+    async with Client(create_server(OutboxStore(tmp_path / "notifier.db"))) as client:
+        tools = await client.list_tools()
+
+    send = next(tool for tool in tools.tools if tool.name == "send_notification")
+    assert send.description is not None
+    assert "email" in send.description
+    assert "Slack" in send.description
+
+
 async def test_list_outbox_when_two_sent_returns_newest_first(tmp_path: Path) -> None:
     server = create_server(OutboxStore(tmp_path / "notifier.db"))
 
