@@ -1,0 +1,8 @@
+id: warehouse_status_breakdown_24h
+description: Breaks down the last 24 hours of orders by status.
+task: Break down the orders created in the last 24 hours by status, with a count for each status.
+role: viewer
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: ["56", "35", "25"]

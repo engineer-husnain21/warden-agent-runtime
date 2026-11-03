@@ -1,0 +1,8 @@
+id: warehouse_failed_amount_24h
+description: Sums the USD amount of orders that failed in the last 24 hours.
+task: What is the total amount in USD of the orders that failed in the last 24 hours?
+role: operator
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: ["8297.63|8,297.63|8297.6|8,297.6"]

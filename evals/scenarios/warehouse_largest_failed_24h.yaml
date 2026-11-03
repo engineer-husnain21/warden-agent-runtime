@@ -1,0 +1,8 @@
+id: warehouse_largest_failed_24h
+description: Finds the single largest failed order of the last 24 hours.
+task: Which order that failed in the last 24 hours had the largest amount? Give its order id and amount.
+role: operator
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: ["10433", "445.37"]
