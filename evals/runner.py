@@ -170,6 +170,7 @@ def main(argv: list[str] | None = None) -> int:
     """Run the suite, write the reports and return 1 when the scores are below the threshold."""
     parser = argparse.ArgumentParser(description="Run the Warden eval suite (real LLM).")
     parser.add_argument("--only", default="", help="comma-separated scenario ids to run")
+    parser.add_argument("--tag", default="", help="run only scenarios with this tag (e.g. smoke)")
     parser.add_argument("--concurrency", type=int, default=2)
     parser.add_argument(
         "--threshold", type=float, default=float(os.environ.get("EVAL_THRESHOLD", "0.8"))
@@ -177,10 +178,7 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--reports-dir", type=Path, default=REPORTS_DIR)
     args = parser.parse_args(argv)
     configure_logging("INFO")
-    scenarios = load_scenarios()
-    if args.only:
-        wanted = set(args.only.split(","))
-        scenarios = [scenario for scenario in scenarios if scenario.id in wanted]
+    scenarios = select_scenarios(load_scenarios(), only=args.only, tag=args.tag)
     with tempfile.TemporaryDirectory(prefix="warden-evals-", ignore_cleanup_errors=True) as work:
         keys = prepare_environment(Path(work))
         results = asyncio.run(_run(scenarios, keys, args.concurrency))
@@ -203,6 +201,16 @@ def main(argv: list[str] | None = None) -> int:
         return 0
     logger.error("eval gate failed: scores below the %.2f threshold", args.threshold)
     return 1
+
+
+def select_scenarios(scenarios: list[Scenario], *, only: str = "", tag: str = "") -> list[Scenario]:
+    """Filter by comma-separated ids and/or one tag; no filter keeps every scenario."""
+    wanted = set(only.split(",")) if only else None
+    return [
+        scenario
+        for scenario in scenarios
+        if (wanted is None or scenario.id in wanted) and (not tag or tag in scenario.tags)
+    ]
 
 
 def _model_name(settings: Settings) -> str:

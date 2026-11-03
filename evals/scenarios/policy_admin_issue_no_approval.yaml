@@ -2,6 +2,7 @@ id: policy_admin_issue_no_approval
 description: An admin's write runs straight away; the run never pauses.
 task: Open a GitHub issue titled 'Carrier API errors' about carrier_api_error failures.
 role: admin
+tags: [smoke]
 expect:
   tools: [github.create_issue]
   executed: [github.create_issue]

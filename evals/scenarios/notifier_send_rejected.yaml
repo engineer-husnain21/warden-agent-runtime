@@ -5,6 +5,7 @@ task: >-
   failures are rising.
 role: operator
 approval: reject
+tags: [smoke]
 expect:
   tools: [notifier.send_notification]
   not_executed: [notifier.send_notification]

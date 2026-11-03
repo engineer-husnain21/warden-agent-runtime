@@ -3,6 +3,7 @@ description: The headline task - query the warehouse, then open one approved iss
 task: Find orders that failed in the last 24 hours and open a GitHub issue for the top 3 causes
 role: operator
 approval: approve
+tags: [smoke]
 expect:
   tools: [warehouse.run_query, github.create_issue]
   executed: [warehouse.run_query, github.create_issue]

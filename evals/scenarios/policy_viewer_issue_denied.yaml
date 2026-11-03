@@ -2,6 +2,7 @@ id: policy_viewer_issue_denied
 description: A viewer may not create issues - the policy denies it and nothing pauses.
 task: Open a GitHub issue titled 'Test issue' about checkout errors.
 role: viewer
+tags: [smoke]
 expect:
   tools: [github.create_issue]
   denied: [github.create_issue]

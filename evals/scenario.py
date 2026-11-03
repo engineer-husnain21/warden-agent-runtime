@@ -22,4 +22,6 @@ class Scenario(BaseModel):
     task: str = Field(min_length=3)
     role: Role = Role.OPERATOR
     approval: ApprovalAction = "none"
+    # e.g. "smoke": the subset CI runs on every PR (`--tag smoke`); see docs/adr/0004.
+    tags: list[str] = []
     expect: ScenarioExpectation
