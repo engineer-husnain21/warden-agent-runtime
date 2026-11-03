@@ -1,7 +1,7 @@
 from typing import Any
 
 from web import theme
-from web.charts import status_donut_chart, step_usage_charts
+from web.charts import BAR_CHART_PADDING, BAR_HEIGHT, status_donut_chart, step_usage_charts
 
 
 def _step(position: int, kind: str, tokens: int, cost: float) -> dict[str, Any]:
@@ -40,7 +40,7 @@ def test_step_usage_charts_when_many_steps_labels_every_bar() -> None:
         axis = spec["encoding"]["y"]["axis"]
         assert spec["encoding"]["y"]["field"] == "step"
         assert axis["labelOverlap"] is False  # Vega-Lite would otherwise hide some labels
-        assert spec["height"] >= 12 * 20  # a row per bar
+        assert spec["height"] == 12 * BAR_HEIGHT + BAR_CHART_PADDING  # ~28 px per bar
         [rows] = spec["datasets"].values()
         assert rows[5]["step"] == "#5 Select tool"
 

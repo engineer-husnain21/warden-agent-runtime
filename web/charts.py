@@ -7,8 +7,8 @@ import altair as alt
 from web import theme
 from web.trace_format import KIND_TITLES
 
-_ROW_HEIGHT = 26
-_AXIS_HEIGHT = 40
+BAR_HEIGHT = 28  # px per step bar, so bars stay thick and their labels never overlap
+BAR_CHART_PADDING = 24
 
 
 def step_usage_charts(steps: list[dict[str, Any]]) -> tuple[alt.Chart, alt.Chart] | None:
@@ -34,7 +34,7 @@ def step_usage_charts(steps: list[dict[str, Any]]) -> tuple[alt.Chart, alt.Chart
         legend=None,
     )
     y = alt.Y("step:N", sort=None, title=None, axis=alt.Axis(labelOverlap=False, labelLimit=0))
-    height = _ROW_HEIGHT * len(rows) + _AXIS_HEIGHT
+    height = BAR_HEIGHT * len(rows) + BAR_CHART_PADDING
     tokens = base.encode(
         y=y,
         x=alt.X("tokens:Q", title="Tokens"),
