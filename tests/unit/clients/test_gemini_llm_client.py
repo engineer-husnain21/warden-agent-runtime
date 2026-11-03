@@ -85,8 +85,10 @@ async def test_complete_when_called_maps_roles_and_system_instruction() -> None:
 async def test_complete_when_server_error_persists_raises_external_service_error() -> None:
     client = _client(lambda _request: httpx.Response(503))
 
-    with pytest.raises(ExternalServiceError):
+    with pytest.raises(ExternalServiceError) as caught:
         await client.complete(MESSAGES)
+
+    assert caught.value.message == "Gemini request failed (HTTP 503)"
 
 
 async def test_complete_when_no_candidates_raises_external_service_error() -> None:

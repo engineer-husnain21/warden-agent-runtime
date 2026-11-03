@@ -18,6 +18,13 @@ def is_retryable(error: Exception) -> bool:
     return isinstance(error, httpx.TransportError)
 
 
+def describe_http_error(error: httpx.HTTPError) -> str:
+    """'HTTP 429' or the transport error's type: safe to show (no URL, so no key in a query)."""
+    if isinstance(error, httpx.HTTPStatusError):
+        return f"HTTP {error.response.status_code}"
+    return type(error).__name__
+
+
 async def retry_with_backoff[T](
     operation: Callable[[], Awaitable[T]],
     *,

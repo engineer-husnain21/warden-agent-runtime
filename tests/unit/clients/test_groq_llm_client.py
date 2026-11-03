@@ -69,6 +69,8 @@ async def test_complete_when_unauthorized_raises_external_service_error() -> Non
         await client.complete(MESSAGES)
 
     assert "test-key" not in str(caught.value.details)
+    # The cause is in the message (it ends up in the run's error), never the URL or key.
+    assert caught.value.message == "Groq request failed (HTTP 401)"
 
 
 async def test_complete_when_body_malformed_raises_external_service_error() -> None:

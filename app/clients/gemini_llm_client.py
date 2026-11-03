@@ -4,7 +4,7 @@ from typing import Any
 
 import httpx
 
-from app.clients.backoff import retry_with_backoff
+from app.clients.backoff import describe_http_error, retry_with_backoff
 from app.clients.pricing import estimate_cost_usd
 from app.core.exceptions import ExternalServiceError
 from app.schemas.llm_message import LlmMessage
@@ -56,7 +56,8 @@ class GeminiLlmClient:
             )
         except httpx.HTTPError as error:
             raise ExternalServiceError(
-                "Gemini request failed", details={"provider": "gemini", "error": str(error)}
+                f"Gemini request failed ({describe_http_error(error)})",
+                details={"provider": "gemini", "error": str(error)},
             ) from error
         latency_ms = (time.perf_counter() - started) * 1000
 
