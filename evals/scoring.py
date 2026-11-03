@@ -58,12 +58,24 @@ def score_run(
         failures=failures,
         picked_tools=sorted(picked),
         run_id=run.get("id"),
+        run_error=run.get("error"),
+        trace=[_trace_line(step) for step in steps],
+        report=report,
         llm_calls=metrics.get("llm_calls", 0),
         input_tokens=metrics.get("total_input_tokens", 0),
         output_tokens=metrics.get("total_output_tokens", 0),
         llm_latency_ms=metrics.get("total_latency_ms", 0.0),
         cost_usd=metrics.get("total_cost_usd", 0.0),
     )
+
+
+def _trace_line(step: dict[str, Any]) -> str:
+    """'tool_selection succeeded github.create_issue'; failed steps add their error."""
+    parts = [step["kind"], step["status"], step.get("tool_name") or ""]
+    error = (step.get("output") or {}).get("error") if step["status"] == "failed" else None
+    if error:
+        parts.append(f"({str(error)[:200]})")
+    return " ".join(part for part in parts if part)
 
 
 def _tools(steps: list[dict[str, Any]], kind: str, status: str | None = None) -> set[str]:

@@ -11,6 +11,10 @@ class ScenarioResult(BaseModel):
     failures: list[str] = []
     picked_tools: list[str] = []
     run_id: str | None = None
+    # For debugging a failure from the JSON report: the run error, step trace and final report.
+    run_error: str | None = None
+    trace: list[str] = []
+    report: str = ""
     llm_calls: int = 0
     input_tokens: int = 0
     output_tokens: int = 0

@@ -70,6 +70,15 @@ def test_score_when_report_check_lists_alternatives_accepts_any(report: str, pas
     assert score_run(scenario, COMPLETED, APPROVED_STEPS, report, METRICS).passed is passed
 
 
+def test_score_when_step_failed_keeps_its_error_in_the_trace() -> None:
+    failed_call = {**step("tool_call", "failed", "warehouse.run_query"), "output": {"error": "x"}}
+
+    result = score_run(make_scenario(), COMPLETED, [failed_call], REPORT, METRICS)
+
+    assert result.trace == ["tool_call failed warehouse.run_query (x)"]
+    assert result.report == REPORT
+
+
 def test_score_when_tool_denied_and_not_run_passes() -> None:
     scenario = make_scenario(
         role="viewer",

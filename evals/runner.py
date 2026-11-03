@@ -53,18 +53,25 @@ async def run_scenario(
     run_id = response.json()["id"]
     deadline = started + timeout_seconds
     notes: list[str] = []
-    for _ in range(MAX_APPROVALS + 1):
+    decided = 0
+    while True:
         run = await _wait_until_settled(client, run_id, caller, deadline, poll_seconds, sleep)
-        if run["status"] not in SETTLED:
+        if run["status"] not in SETTLED or time.monotonic() > deadline:
             notes.append(f"timed out after {timeout_seconds:.0f}s")
             break
         if run["status"] != "awaiting_approval":
             break
-        if scenario.approval == "none":
+        approve = scenario.approval == "approve"
+        new_decisions = await _decide_pending(client, run_id, admin, approve=approve)
+        if not new_decisions:  # already decided; the run has not resumed yet
+            await sleep(poll_seconds)
+            continue
+        if scenario.approval == "none" and not decided:
             notes.append("paused for approval, but the scenario expects no approval")
-        await _decide_pending(client, run_id, admin, approve=scenario.approval == "approve")
-    else:
-        notes.append(f"asked for approval more than {MAX_APPROVALS} times")
+        decided += new_decisions
+        if decided > MAX_APPROVALS:
+            notes.append(f"asked for approval more than {MAX_APPROVALS} times")
+            break
 
     steps = await _get(client, f"/agent-runs/{run_id}/steps", caller)
     report = (await _get(client, f"/agent-runs/{run_id}/report", caller)).get("report") or ""
@@ -129,14 +136,16 @@ async def _wait_until_settled(
 
 async def _decide_pending(
     client: httpx.AsyncClient, run_id: str, admin: dict[str, str], *, approve: bool
-) -> None:
-    for approval in await _get(client, "/approvals", admin):
-        if approval["run_id"] == run_id:
-            body = {"approved": approve, "reason": "eval scenario decision"}
-            response = await client.post(
-                f"/approvals/{approval['id']}/decisions", json=body, headers=admin
-            )
-            response.raise_for_status()
+) -> int:
+    """Answer the run's pending approvals; return how many there were."""
+    pending = [a for a in await _get(client, "/approvals", admin) if a["run_id"] == run_id]
+    for approval in pending:
+        body = {"approved": approve, "reason": "eval scenario decision"}
+        response = await client.post(
+            f"/approvals/{approval['id']}/decisions", json=body, headers=admin
+        )
+        response.raise_for_status()
+    return len(pending)
 
 
 async def _get(client: httpx.AsyncClient, path: str, headers: dict[str, str]) -> Any:

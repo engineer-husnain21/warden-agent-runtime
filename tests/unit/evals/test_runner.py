@@ -20,10 +20,11 @@ REPORT = "## Actions taken\n- Would create GitHub issue (dry-run, nothing was cr
 class FakeWardenApi:
     """Scripted Warden API: the run pauses once for approval, then finishes."""
 
-    def __init__(self, statuses: list[str], error: str | None = None) -> None:
+    def __init__(self, statuses: list[str], error: str | None = None, pending: bool = True) -> None:
         self._statuses: Iterator[str] = iter(statuses)
         self._status = "pending"
         self._error = error
+        self._pending = pending
         self.decisions: list[tuple[str, dict[str, Any], str]] = []
         self.created_by: list[str] = []
 
@@ -41,9 +42,8 @@ class FakeWardenApi:
                 200, json={"id": "r1", "status": self._status, "error": self._error}
             )
         if path == "/approvals":
-            return httpx.Response(
-                200, json=[{"id": "a1", "run_id": "r1"}, {"id": "a2", "run_id": "x"}]
-            )
+            mine = [{"id": "a1", "run_id": "r1"}] if self._pending else []
+            return httpx.Response(200, json=[*mine, {"id": "a2", "run_id": "x"}])
         if path.endswith("/steps"):
             return httpx.Response(200, json=APPROVED_STEPS)
         if path.endswith("/report"):
@@ -76,6 +76,18 @@ async def test_run_scenario_when_run_pauses_approves_as_admin_and_scores() -> No
             KEYS[Role.ADMIN],
         )
     ]
+
+
+async def test_run_scenario_when_awaiting_but_nothing_pending_waits_without_deciding() -> None:
+    # The approval was decided already; the run flips to running a moment later.
+    api = FakeWardenApi(["awaiting_approval"] * 5 + ["completed"], pending=False)
+
+    async with _client(api) as client:
+        result = await run_scenario(client, make_scenario(), KEYS, sleep=_no_sleep)
+
+    assert api.decisions == []
+    assert not any("approval" in failure for failure in result.failures)
+    assert result.status == "completed"
 
 
 async def test_run_scenario_when_scenario_expects_no_approval_rejects_and_fails() -> None:
