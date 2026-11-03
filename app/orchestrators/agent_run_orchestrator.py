@@ -36,6 +36,8 @@ from app.schemas.agents.reporter_output import ReporterOutput
 from app.schemas.agents.step_record import StepRecord
 from app.schemas.agents.step_reviewer_input import StepReviewerInput
 from app.schemas.agents.step_reviewer_output import StepReviewerOutput
+from app.schemas.agents.tool_catalog_input import ToolCatalogInput
+from app.schemas.agents.tool_catalog_output import ToolCatalogOutput
 from app.schemas.agents.tool_executor_input import ToolExecutorInput
 from app.schemas.agents.tool_executor_output import ToolExecutorOutput
 from app.schemas.agents.tool_selector_input import ToolSelectorInput
@@ -49,7 +51,6 @@ from app.schemas.run_step_status import RunStepStatus
 from app.schemas.step_event import StepEvent
 from app.schemas.tool_call import ToolCall
 from app.schemas.tool_result import ToolResult
-from app.schemas.tool_spec import ToolSpec
 
 GraphInput = RunState | Command[Any] | None
 # Key LangGraph uses in "updates" stream chunks when a node called interrupt().
@@ -58,7 +59,7 @@ INTERRUPT_KEY = "__interrupt__"
 
 class AgentRunOrchestrator:
     """Runs one task as a LangGraph graph: plan, then per step select → execute → review,
-    then the final report.
+    then the final report. Tools are listed and called only through agents.
 
     Every node publishes one StepEvent on the graph's custom stream; `stream()` yields them as
     they happen. State is checkpointed after every node, keyed by the run id.
@@ -67,6 +68,7 @@ class AgentRunOrchestrator:
     def __init__(
         self,
         *,
+        tool_catalog: BaseAgent[ToolCatalogInput, ToolCatalogOutput],
         planner: BaseAgent[PlannerInput, PlannerOutput],
         tool_selector: BaseAgent[ToolSelectorInput, ToolSelectorOutput],
         tool_executor: BaseAgent[ToolExecutorInput, ToolExecutorOutput],
@@ -77,6 +79,7 @@ class AgentRunOrchestrator:
         max_steps: int,
         max_step_retries: int,
     ) -> None:
+        self._tool_catalog = tool_catalog
         self._planner = planner
         self._tool_selector = tool_selector
         self._tool_executor = tool_executor
@@ -87,11 +90,10 @@ class AgentRunOrchestrator:
         self._max_step_retries = max_step_retries
         self._graph = self._build_graph().compile(checkpointer=checkpointer)
 
-    async def stream(
-        self, run_id: str, task: str, role: Role, tools: list[ToolSpec]
-    ) -> AsyncIterator[StepEvent]:
-        """Start a new run and yield its events."""
-        initial = initial_state(run_id, task, role, tools)
+    async def stream(self, run_id: str, task: str, role: Role) -> AsyncIterator[StepEvent]:
+        """Start a new run: look up the tools it can use, then yield its events."""
+        catalog = await self._tool_catalog.run(ToolCatalogInput())
+        initial = initial_state(run_id, task, role, catalog.tools)
         async for event in self._drive(run_id, initial):
             yield event
 

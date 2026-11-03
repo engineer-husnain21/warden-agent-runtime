@@ -11,7 +11,6 @@ from app.schemas.tool_result import ToolResult
 from tests.fakes.fake_llm_client import FakeLlmClient
 from tests.fakes.fake_tool_client import FakeToolClient
 from tests.unit.orchestrators.orchestrator_helpers import (
-    TOOLS,
     build_orchestrator,
     collect,
     kinds,
@@ -49,7 +48,7 @@ async def test_resume_when_crash_after_step_one_does_not_rerun_step_one(tmp_path
     first_repo = CheckpointRepository(url)
     crashed = build_orchestrator(first_llm, first_tools, checkpointer=await first_repo.open())
     with pytest.raises(RuntimeError, match="process killed"):
-        await collect(crashed.stream("run-crash", TASK, Role.ADMIN, TOOLS))
+        await collect(crashed.stream("run-crash", TASK, Role.ADMIN))
     await first_repo.close()
 
     # Second process: new orchestrator, same checkpoint file, resume without input.

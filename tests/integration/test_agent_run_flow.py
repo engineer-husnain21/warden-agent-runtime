@@ -61,7 +61,7 @@ async def setup(
     )
     audit = AuditService(session_factory)
     runs = AgentRunService(
-        session_factory, audit, build_orchestrator(FakeLlmClient(replies), tools), tools
+        session_factory, audit, build_orchestrator(FakeLlmClient(replies), tools)
     )
     app = create_app()
     app.dependency_overrides[get_audit_service] = lambda: audit

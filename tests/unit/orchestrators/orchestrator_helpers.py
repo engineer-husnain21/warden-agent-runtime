@@ -10,6 +10,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from app.agents.planner_agent import PlannerAgent
 from app.agents.reporter_agent import ReporterAgent
 from app.agents.step_reviewer_agent import StepReviewerAgent
+from app.agents.tool_catalog_agent import ToolCatalogAgent
 from app.agents.tool_executor_agent import ToolExecutorAgent
 from app.agents.tool_selector_agent import ToolSelectorAgent
 from app.core.config import Settings
@@ -44,9 +45,12 @@ def build_orchestrator(
     checkpointer: BaseCheckpointSaver[str] | None = None,
     max_steps: int = 8,
     max_step_retries: int = 1,
+    catalog: Sequence[ToolSpec] = TOOLS,
 ) -> AgentRunOrchestrator:
+    """`catalog` is what the run can plan with; `tools` is the fake that executes calls."""
     prompts = FilePromptLoader(PROMPTS_DIR)
     return AgentRunOrchestrator(
+        tool_catalog=ToolCatalogAgent(llm, prompts, FakeToolClient(tools=catalog)),
         planner=PlannerAgent(llm, prompts),
         tool_selector=ToolSelectorAgent(llm, prompts),
         tool_executor=ToolExecutorAgent(llm, prompts, tools or FakeToolClient()),

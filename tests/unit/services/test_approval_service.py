@@ -35,7 +35,6 @@ async def _paused_run(
         session_factory,
         audit,
         build_orchestrator(FakeLlmClient(replies + after_resume), tools),
-        tools,
     )
     run = await runs.create_run("Open an issue", OSCAR)
     await runs.execute_run(run.id)

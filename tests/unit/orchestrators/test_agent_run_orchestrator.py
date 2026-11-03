@@ -4,7 +4,6 @@ from app.schemas.role import Role
 from tests.fakes.fake_llm_client import FakeLlmClient
 from tests.fakes.fake_tool_client import FakeToolClient
 from tests.unit.orchestrators.orchestrator_helpers import (
-    TOOLS,
     build_orchestrator,
     collect,
     kinds,
@@ -20,7 +19,7 @@ async def test_stream_when_plan_has_no_steps_yields_report_event() -> None:
     llm = FakeLlmClient(['{"steps": []}', "## Summary\nNothing could be done."])
     orchestrator = build_orchestrator(llm)
 
-    events = await collect(orchestrator.stream("run-1", "Book a flight", Role.OPERATOR, TOOLS))
+    events = await collect(orchestrator.stream("run-1", "Book a flight", Role.OPERATOR))
 
     assert kinds(events) == [("plan", "succeeded"), ("report", "succeeded")]
     assert events[0].output == {"steps": [], "dropped_steps": 0}
@@ -43,7 +42,7 @@ async def test_stream_when_two_steps_yields_events_in_order() -> None:
     )
     tools = FakeToolClient(results={"warehouse.run_query": {"rows": [{"n": 35}]}})
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-2", TASK, Role.VIEWER, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-2", TASK, Role.VIEWER))
 
     step_events = [
         ("tool_selection", "succeeded"),
@@ -68,7 +67,7 @@ async def test_stream_when_selector_fails_twice_records_failed_step_and_continue
     llm = FakeLlmClient([plan("Do something odd"), bad, bad, "## Summary\nThe step failed."])
     tools = FakeToolClient()
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-3", TASK, Role.ADMIN, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-3", TASK, Role.ADMIN))
 
     assert kinds(events) == [
         ("plan", "succeeded"),
@@ -89,7 +88,7 @@ async def test_stream_when_viewer_creates_issue_yields_denied_event() -> None:
     )
     tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-4", TASK, Role.VIEWER, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-4", TASK, Role.VIEWER))
 
     assert kinds(events) == [
         ("plan", "succeeded"),
@@ -115,7 +114,7 @@ async def test_stream_when_admin_creates_issue_executes_it() -> None:
     )
     tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-5", TASK, Role.ADMIN, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-5", TASK, Role.ADMIN))
 
     assert ("tool_call", "succeeded") in kinds(events)
     assert len(tools.calls) == 1
@@ -130,9 +129,7 @@ async def test_stream_when_operator_creates_issue_pauses_awaiting_approval() -> 
     )
     tools = FakeToolClient(results={"github.create_issue": {"issue": {"number": 1}}})
 
-    events = await collect(
-        build_orchestrator(llm, tools).stream("run-6", TASK, Role.OPERATOR, TOOLS)
-    )
+    events = await collect(build_orchestrator(llm, tools).stream("run-6", TASK, Role.OPERATOR))
 
     assert kinds(events) == [
         ("plan", "succeeded"),
@@ -149,7 +146,7 @@ async def test_stream_when_operator_creates_issue_pauses_awaiting_approval() -> 
 
 async def _paused_run(llm: FakeLlmClient, tools: FakeToolClient) -> AgentRunOrchestrator:
     orchestrator = build_orchestrator(llm, tools)
-    await collect(orchestrator.stream("run-7", TASK, Role.OPERATOR, TOOLS))
+    await collect(orchestrator.stream("run-7", TASK, Role.OPERATOR))
     return orchestrator
 
 
@@ -212,7 +209,7 @@ async def test_stream_when_llm_used_events_carry_usage() -> None:
     )
     tools = FakeToolClient(results={"warehouse.run_query": {"rows": [{"n": 35}]}})
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-8", TASK, Role.ADMIN, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-8", TASK, Role.ADMIN))
 
     by_kind = {event.kind.value: event for event in events}
     for kind in ("plan", "tool_selection", "review", "report"):
@@ -237,7 +234,7 @@ async def test_stream_when_review_fails_twice_marks_step_failed() -> None:
     )
     tools = FakeToolClient(results={"warehouse.run_query": {"rows": []}})
 
-    events = await collect(build_orchestrator(llm, tools).stream("run-9", TASK, Role.ADMIN, TOOLS))
+    events = await collect(build_orchestrator(llm, tools).stream("run-9", TASK, Role.ADMIN))
 
     assert [e.status.value for e in events if e.kind.value == "review"] == ["failed", "failed"]
     assert len(tools.calls) == 2
@@ -258,7 +255,7 @@ async def test_stream_when_review_fails_once_then_passes_succeeds() -> None:
     )
     tools = FakeToolClient(results={"warehouse.run_query": {"rows": [{"n": 35}]}})
 
-    await collect(build_orchestrator(llm, tools).stream("run-10", TASK, Role.ADMIN, TOOLS))
+    await collect(build_orchestrator(llm, tools).stream("run-10", TASK, Role.ADMIN))
 
     assert "Count failed orders [succeeded]" in llm.calls[-1][1].content
 
@@ -267,7 +264,7 @@ async def test_stream_when_plan_too_long_keeps_first_max_steps() -> None:
     llm = FakeLlmClient([plan("a", "b", "c"), "x", "y", "z"])
     orchestrator = build_orchestrator(llm, max_steps=0)
 
-    events = await collect(orchestrator.stream("run-11", TASK, Role.ADMIN, TOOLS))
+    events = await collect(orchestrator.stream("run-11", TASK, Role.ADMIN))
 
     assert events[0].output == {"steps": [], "dropped_steps": 3}
     assert kinds(events)[-1] == ("report", "succeeded")
@@ -276,7 +273,7 @@ async def test_stream_when_plan_too_long_keeps_first_max_steps() -> None:
 async def test_has_checkpoint_when_run_started_is_true_and_unknown_run_false() -> None:
     llm = FakeLlmClient(['{"steps": []}', "## Summary\nDone."])
     orchestrator = build_orchestrator(llm)
-    await collect(orchestrator.stream("run-12", TASK, Role.ADMIN, TOOLS))
+    await collect(orchestrator.stream("run-12", TASK, Role.ADMIN))
 
     assert await orchestrator.has_checkpoint("run-12")
     assert not await orchestrator.has_checkpoint("never-started")

@@ -4,7 +4,6 @@ from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.clients.tool_client import ToolClient
 from app.core.logging import get_logger
 from app.models import RunStep
 from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
@@ -36,12 +35,10 @@ class AgentRunService:
         session_factory: async_sessionmaker[AsyncSession],
         audit_service: AuditService,
         orchestrator: AgentRunOrchestrator,
-        tool_client: ToolClient,
     ) -> None:
         self._session_factory = session_factory
         self._audit = audit_service
         self._orchestrator = orchestrator
-        self._tool_client = tool_client
         self._background: set[asyncio.Task[None]] = set()
 
     async def create_run(self, task: str, caller: Caller) -> AgentRunResponse:
@@ -60,12 +57,8 @@ class AgentRunService:
 
     async def execute_run(self, run_id: str) -> None:
         run = await self._set_status(run_id, AgentRunStatus.RUNNING)
-        try:
-            tools = await self._tool_client.list_tools()
-        except Exception as error:
-            await self._fail(run, error)
-            return
-        events = self._orchestrator.stream(run.id, run.task, Role(run.role), tools)
+        # A failure while listing tools surfaces from the stream and fails the run in _consume.
+        events = self._orchestrator.stream(run.id, run.task, Role(run.role))
         await self._consume(run, events)
 
     async def resume_interrupted_runs(self) -> int:

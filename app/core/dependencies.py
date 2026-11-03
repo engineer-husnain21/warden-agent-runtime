@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession, async_sessionmaker
 from app.agents.planner_agent import PlannerAgent
 from app.agents.reporter_agent import ReporterAgent
 from app.agents.step_reviewer_agent import StepReviewerAgent
+from app.agents.tool_catalog_agent import ToolCatalogAgent
 from app.agents.tool_executor_agent import ToolExecutorAgent
 from app.agents.tool_selector_agent import ToolSelectorAgent
 from app.clients.gemini_llm_client import GeminiLlmClient
@@ -115,6 +116,7 @@ def get_checkpoint_repository() -> CheckpointRepository:
 def get_orchestrator() -> AgentRunOrchestrator:
     settings, llm, prompts = get_settings(), get_llm_client(), get_prompt_loader()
     return AgentRunOrchestrator(
+        tool_catalog=ToolCatalogAgent(llm, prompts, get_tool_client()),
         planner=PlannerAgent(llm, prompts),
         tool_selector=ToolSelectorAgent(llm, prompts),
         tool_executor=ToolExecutorAgent(llm, prompts, get_tool_client()),
@@ -134,9 +136,7 @@ def get_audit_service() -> AuditService:
 
 @lru_cache
 def get_agent_run_service() -> AgentRunService:
-    return AgentRunService(
-        get_session_factory(), get_audit_service(), get_orchestrator(), get_tool_client()
-    )
+    return AgentRunService(get_session_factory(), get_audit_service(), get_orchestrator())
 
 
 @lru_cache
