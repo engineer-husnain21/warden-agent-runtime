@@ -2,7 +2,7 @@
 
 import streamlit as st
 
-from web.console_layout import setup_page, short_time, status_pill
+from web.console_layout import NEEDS_APPROVAL_BADGE, approval_card_key, setup_page, short_time
 from web.console_state import get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
@@ -28,10 +28,10 @@ if not pending:
     st.stop()
 
 for approval in pending:
-    with st.container(border=True):
-        title_col, pill_col = st.columns([5, 1.4], vertical_alignment="center")
+    with st.container(border=True, key=approval_card_key(approval["id"])):
+        title_col, badge_col = st.columns([5, 1.4], vertical_alignment="center")
         title_col.markdown(f"#### `{approval['tool_name']}`")
-        pill_col.markdown(status_pill("awaiting_approval"), unsafe_allow_html=True)
+        badge_col.markdown(NEEDS_APPROVAL_BADGE, unsafe_allow_html=True)
 
         info_col, args_col = st.columns([1, 1])
         with info_col:

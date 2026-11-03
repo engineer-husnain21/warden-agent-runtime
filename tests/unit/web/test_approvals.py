@@ -3,6 +3,7 @@ from pathlib import Path
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
+from web.console_layout import approval_card_key
 
 PAGE = Path(__file__).resolve().parents[3] / "web" / "pages" / "approvals.py"
 
@@ -50,3 +51,15 @@ def test_approvals_when_pending_shows_card_with_requester_role_and_policy_reason
     assert "only after a human approves it" in page.info[0].value
     approve = page.button(key="approve-a1")
     assert approve.proto.type == "primary"
+
+
+def test_approvals_when_pending_shows_pulsing_badge_in_keyed_card() -> None:
+    page = _page(FakeWardenApiClient())
+
+    assert any(
+        "w-badge-pulse" in block.value and "Needs approval" in block.value
+        for block in page.markdown
+    )
+    styles = next(block.value for block in page.markdown if "@keyframes w-pulse" in block.value)
+    assert 'div[class*="st-key-approval-"]' in styles
+    assert approval_card_key("a1") == "approval-a1"

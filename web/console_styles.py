@@ -47,6 +47,23 @@ _RULES = """
 .w-metric-label { color: var(--w-muted); font-size: 0.8rem; font-weight: 500; }
 .w-metric-value { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em;
   line-height: 1.2; color: var(--w-text); }
+div[class*="st-key-approval-"] { border: 1.5px solid transparent !important;
+  border-radius: 0.9rem; padding: 1rem 1.1rem;
+  background:
+    linear-gradient(135deg, color-mix(in srgb, var(--w-amber) 10%, var(--w-surface)),
+      var(--w-surface)) padding-box,
+    linear-gradient(135deg, var(--w-amber), color-mix(in srgb, var(--w-pink) 60%, transparent))
+      border-box;
+  box-shadow: 0 0 26px color-mix(in srgb, var(--w-amber) 20%, transparent); }
+.w-badge-pulse { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.75rem;
+  border-radius: 999px; font-size: 0.78rem; font-weight: 700; color: var(--w-amber);
+  background: color-mix(in srgb, var(--w-amber) 18%, transparent);
+  border: 1px solid var(--w-amber); animation: w-pulse 1.8s ease-in-out infinite; }
+.w-badge-pulse::before { content: ""; width: 0.45rem; height: 0.45rem; border-radius: 999px;
+  background: var(--w-amber); }
+@keyframes w-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--w-amber) 55%, transparent); }
+  50% { box-shadow: 0 0 0 7px color-mix(in srgb, var(--w-amber) 0%, transparent); } }
 .warden-timeline { position: relative; margin: 0.25rem 0 1rem 0.9rem; padding-left: 1.6rem;
   border-left: 1px solid var(--w-border); }
 .warden-timeline .tl-item { position: relative; margin-bottom: 0.7rem; padding: 0.55rem 0.9rem;

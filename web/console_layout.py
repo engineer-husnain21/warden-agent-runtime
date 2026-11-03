@@ -18,6 +18,14 @@ def status_pill(status: str) -> str:
     return f'<span class="warden-pill" style="--pill: {status_color(status)}">{label}</span>'
 
 
+NEEDS_APPROVAL_BADGE = '<span class="w-badge-pulse">Needs approval</span>'
+
+
+def approval_card_key(approval_id: str) -> str:
+    """Container key for an approval card; the `st-key-approval-*` class it adds is styled."""
+    return f"approval-{approval_id}"
+
+
 def metric_card(label: str, value: str, icon: str, color: str) -> str:
     """One coloured stat card (soft gradient, glowing border, coloured icon) as HTML."""
     return (
