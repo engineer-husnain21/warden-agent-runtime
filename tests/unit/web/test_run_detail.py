@@ -45,7 +45,7 @@ def test_run_detail_when_loaded_draws_run_flow_chart() -> None:
 
     [chart] = page.get("graphviz_chart")
     assert "digraph run" in chart.proto.spec
-    assert "start -> s0;" in chart.proto.spec
+    assert "start -> plan_0;" in chart.proto.spec
 
 
 def test_run_detail_when_steps_used_llm_shows_tokens_and_cost_charts() -> None:

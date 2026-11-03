@@ -39,6 +39,7 @@ class FakeWardenApiClient:
         return [
             {
                 "position": 0,
+                "step_index": None,
                 "kind": "plan",
                 "status": "succeeded",
                 "agent": "planner",

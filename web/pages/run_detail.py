@@ -71,7 +71,8 @@ st.markdown(
 )
 
 st.subheader("Run flow")
-st.graphviz_chart(build_run_flow_dot(steps, run["status"]), width="stretch")
+# Natural size: stretching a vertical chart to full width would blow it up.
+st.graphviz_chart(build_run_flow_dot(steps, run["status"]), width="content")
 
 usage_charts = step_usage_charts(steps)
 if usage_charts is not None:
