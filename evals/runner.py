@@ -29,7 +29,9 @@ from evals.scoring import score_run
 REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 SETTLED = {"awaiting_approval", "completed", "failed"}
 MAX_APPROVALS = 3
-RATE_LIMIT_MARKERS = ("429", "rate limit", "rate_limit", "too many requests")
+# Failures worth one more try: LLM rate limits and provider errors that outlived the client's
+# own retries (the run error reads e.g. "ExternalServiceError: Groq request failed (HTTP 429)").
+RATE_LIMIT_MARKERS = ("429", "rate limit", "rate_limit", "too many requests", "request failed")
 
 Sleep = Callable[[float], Awaitable[None]]
 logger = get_logger("evals.runner")
