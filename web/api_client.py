@@ -53,6 +53,30 @@ class WardenApiClient:
         result: list[dict[str, Any]] = self._request("GET", "/approvals")
         return result
 
+    def list_pending_approvals_with_context(self) -> list[dict[str, Any]]:
+        """Pending approvals plus what a reviewer needs: the run's task, the requester's role
+        and why the policy asked for a human (each run is fetched once)."""
+        approvals = self.list_pending_approvals()
+        runs: dict[str, dict[str, Any]] = {}
+        enriched = []
+        for approval in approvals:
+            run_id = approval["run_id"]
+            if run_id not in runs:
+                runs[run_id] = self.get_run(run_id)
+            run = runs[run_id]
+            enriched.append(
+                {
+                    **approval,
+                    "run_task": run["task"],
+                    "requested_role": run["role"],
+                    "policy_reason": (
+                        f"The '{run['role']}' role may call {approval['tool_name']} only after "
+                        "a human approves it."
+                    ),
+                }
+            )
+        return enriched
+
     def decide(self, approval_id: str, approved: bool, reason: str | None) -> dict[str, Any]:
         body = {"approved": approved, "reason": reason or None}
         result: dict[str, Any] = self._request(

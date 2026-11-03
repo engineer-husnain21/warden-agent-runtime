@@ -85,6 +85,18 @@ class FakeWardenApiClient:
             }
         ]
 
+    def list_pending_approvals_with_context(self) -> list[dict[str, Any]]:
+        return [
+            {
+                **approval,
+                "run_task": RUN["task"],
+                "requested_role": RUN["role"],
+                "policy_reason": "The 'operator' role may call github.create_issue only after "
+                "a human approves it.",
+            }
+            for approval in self.list_pending_approvals()
+        ]
+
     def decide(self, approval_id: str, approved: bool, reason: str | None) -> dict[str, Any]:
         self.decisions.append((approval_id, approved, reason))
         return {"id": approval_id, "status": "approved" if approved else "rejected"}

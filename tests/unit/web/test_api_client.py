@@ -66,3 +66,27 @@ def test_api_client_when_key_has_whitespace_sends_stripped_key(pasted_key: str) 
 
     assert seen[0].headers["X-API-Key"] == "operator-dev-key"
     assert str(seen[0].url).startswith("http://api.test/api/v1/agent-runs")
+
+
+def test_api_client_when_approvals_listed_with_context_adds_task_role_and_reason() -> None:
+    calls: list[str] = []
+    approvals = [
+        {"id": "a1", "run_id": "r1", "tool_name": "github.create_issue"},
+        {"id": "a2", "run_id": "r1", "tool_name": "notifier.send_notification"},
+    ]
+    run = {"id": "r1", "task": "Find failed orders", "role": "operator"}
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request.url.path)
+        return httpx.Response(
+            200, json=approvals if request.url.path.endswith("/approvals") else run
+        )
+
+    client = WardenApiClient("http://api.test", "k", transport=httpx.MockTransport(handler))
+
+    enriched = client.list_pending_approvals_with_context()
+
+    assert [a["run_task"] for a in enriched] == ["Find failed orders", "Find failed orders"]
+    assert enriched[0]["requested_role"] == "operator"
+    assert "'operator' role may call github.create_issue" in enriched[0]["policy_reason"]
+    assert calls == ["/api/v1/approvals", "/api/v1/agent-runs/r1"]  # run fetched once

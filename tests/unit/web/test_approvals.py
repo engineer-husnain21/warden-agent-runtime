@@ -39,3 +39,14 @@ def test_approvals_when_pending_shows_tool_and_arguments() -> None:
     assert not page.exception
     assert any("github.create_issue" in block.value for block in page.markdown)
     assert page.json[0].value is not None
+
+
+def test_approvals_when_pending_shows_card_with_requester_role_and_policy_reason() -> None:
+    page = _page(FakeWardenApiClient())
+
+    text = " ".join(block.value for block in page.markdown)
+    assert "oscar (operator)" in text
+    assert "Find failed orders" in text
+    assert "only after a human approves it" in page.info[0].value
+    approve = page.button(key="approve-a1")
+    assert approve.proto.type == "primary"
