@@ -6,7 +6,6 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.types import Command, interrupt
 
 from app.agents.base_agent import BaseAgent
-from app.agents.tool_result_text import format_tool_result
 from app.core.exceptions import AgentOutputError
 from app.orchestrators.run_graph_routes import (
     awaiting_approval_event,
@@ -26,6 +25,7 @@ from app.orchestrators.run_state_helpers import (
     pending_call,
     record,
     result_output,
+    review_update,
     tools_of,
 )
 from app.policies.tool_permission_policy import ToolPermissionPolicy
@@ -33,7 +33,7 @@ from app.schemas.agents.planner_input import PlannerInput
 from app.schemas.agents.planner_output import PlannerOutput
 from app.schemas.agents.reporter_input import ReporterInput
 from app.schemas.agents.reporter_output import ReporterOutput
-from app.schemas.agents.step_record import StepOutcome, StepRecord
+from app.schemas.agents.step_record import StepRecord
 from app.schemas.agents.step_reviewer_input import StepReviewerInput
 from app.schemas.agents.step_reviewer_output import StepReviewerOutput
 from app.schemas.agents.tool_executor_input import ToolExecutorInput
@@ -52,7 +52,6 @@ from app.schemas.tool_result import ToolResult
 from app.schemas.tool_spec import ToolSpec
 
 GraphInput = RunState | Command[Any] | None
-PREVIOUS_RESULT_CHARS = 1500
 # Key LangGraph uses in "updates" stream chunks when a node called interrupt().
 INTERRUPT_KEY = "__interrupt__"
 
@@ -275,19 +274,7 @@ class AgentRunOrchestrator:
             output={"ok": review.ok, "feedback": review.feedback},
             usage=review.usage,
         )
-        attempt = state.get("attempt", 0)
-        if not review.ok and attempt < self._max_step_retries:
-            # Try the step again; the selector gets the reviewer's feedback.
-            return {"attempt": attempt + 1, "retrying": True, "feedback": review.feedback}
-        outcome: StepOutcome = "succeeded" if review.ok else "failed"
-        update: dict[str, Any] = {
-            "retrying": False,
-            "records": [record(step, outcome, call.tool, result, review.feedback)],
-        }
-        if review.ok:
-            summary = format_tool_result(result, PREVIOUS_RESULT_CHARS)
-            update["previous_results"] = [f"step {state['current'] + 1} ({call.tool}): {summary}"]
-        return update
+        return review_update(state, review, result, self._max_step_retries)
 
     async def _next_step(self, state: RunState) -> dict[str, Any]:
         return next_step_update(state)
