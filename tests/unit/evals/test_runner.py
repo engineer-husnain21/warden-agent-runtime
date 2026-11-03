@@ -1,11 +1,16 @@
 import json
 from collections.abc import Iterator
+from pathlib import Path
 from typing import Any
 
 import httpx
+import pytest
 
 from app.schemas.role import Role
-from evals.runner import run_scenario, run_with_retries
+from evals import runner
+from evals.runner import main, run_scenario, run_with_retries
+from evals.scenario import Scenario
+from evals.scenario_result import ScenarioResult
 from tests.unit.evals.scenario_factory import APPROVED_STEPS, METRICS, make_scenario
 
 KEYS = {role: f"key-{role.value}" for role in Role}
@@ -99,3 +104,39 @@ async def test_run_with_retries_when_rate_limited_retries_then_gives_up() -> Non
     assert result.attempts == 3
     assert waits == [10, 20]
     assert len(api.created_by) == 3
+
+
+def _stub_suite(monkeypatch: pytest.MonkeyPatch, passed: list[bool]) -> None:
+    """Replace the real app + LLM with canned results; main() still scores and writes reports."""
+
+    async def fake_run(
+        scenarios: list[Scenario], keys: dict[Role, str], concurrency: int
+    ) -> list[ScenarioResult]:
+        return [
+            ScenarioResult(
+                scenario_id=f"s{index}", passed=ok, tool_accuracy=1.0, status="completed"
+            )
+            for index, ok in enumerate(passed)
+        ]
+
+    monkeypatch.setattr(runner, "prepare_environment", lambda _work_dir: KEYS)
+    monkeypatch.setattr(runner, "_run", fake_run)
+
+
+def test_main_when_score_below_threshold_exits_1(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_suite(monkeypatch, [True, False, False, True])  # success rate 0.5
+
+    exit_code = main(["--threshold", "0.8", "--reports-dir", str(tmp_path)])
+
+    assert exit_code == 1
+    assert "gate **FAILED**" in (tmp_path / "latest.md").read_text(encoding="utf-8")
+
+
+def test_main_when_scores_reach_threshold_exits_0(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+) -> None:
+    _stub_suite(monkeypatch, [True, True, True, True, False])  # success rate 0.8
+
+    assert main(["--threshold", "0.8", "--reports-dir", str(tmp_path)]) == 0

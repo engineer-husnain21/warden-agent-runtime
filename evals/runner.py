@@ -1,10 +1,12 @@
 """Eval runner: runs every scenario against the in-process API with the real LLM and scores it.
 
-Usage: `uv run python -m evals.runner [--only id1,id2] [--concurrency 2]`
+Usage: `uv run python -m evals.runner [--threshold 0.8] [--only id1,id2] [--concurrency 2]`
+Exits 1 when task success rate or tool-call accuracy is below the threshold.
 """
 
 import argparse
 import asyncio
+import os
 import tempfile
 import time
 from collections.abc import Awaitable, Callable
@@ -13,15 +15,18 @@ from typing import Any
 
 import httpx
 
+from app.core.config import Settings, get_settings
 from app.core.logging import configure_logging, get_logger
 from app.schemas.role import Role
 from evals.eval_environment import eval_client, prepare_environment
 from evals.eval_summary import EvalSummary
+from evals.report_writer import gate_passes, write_reports
 from evals.scenario import Scenario
 from evals.scenario_loader import load_scenarios
 from evals.scenario_result import ScenarioResult
 from evals.scoring import score_run
 
+REPORTS_DIR = Path(__file__).resolve().parent / "reports"
 SETTLED = {"awaiting_approval", "completed", "failed"}
 MAX_APPROVALS = 3
 RATE_LIMIT_MARKERS = ("429", "rate limit", "rate_limit", "too many requests")
@@ -145,10 +150,36 @@ def _rate_limited(result: ScenarioResult) -> bool:
     return any(marker in text for marker in RATE_LIMIT_MARKERS)
 
 
-async def _run(scenarios: list[Scenario], keys: dict[Role, str], concurrency: int) -> int:
+async def _run(
+    scenarios: list[Scenario], keys: dict[Role, str], concurrency: int
+) -> list[ScenarioResult]:
     async with eval_client() as client:
-        results = await run_suite(client, scenarios, keys, concurrency)
+        return await run_suite(client, scenarios, keys, concurrency)
+
+
+def main(argv: list[str] | None = None) -> int:
+    """Run the suite, write the reports and return 1 when the scores are below the threshold."""
+    parser = argparse.ArgumentParser(description="Run the Warden eval suite (real LLM).")
+    parser.add_argument("--only", default="", help="comma-separated scenario ids to run")
+    parser.add_argument("--concurrency", type=int, default=2)
+    parser.add_argument(
+        "--threshold", type=float, default=float(os.environ.get("EVAL_THRESHOLD", "0.8"))
+    )
+    parser.add_argument("--reports-dir", type=Path, default=REPORTS_DIR)
+    args = parser.parse_args(argv)
+    configure_logging("INFO")
+    scenarios = load_scenarios()
+    if args.only:
+        wanted = set(args.only.split(","))
+        scenarios = [scenario for scenario in scenarios if scenario.id in wanted]
+    with tempfile.TemporaryDirectory(prefix="warden-evals-", ignore_cleanup_errors=True) as work:
+        keys = prepare_environment(Path(work))
+        results = asyncio.run(_run(scenarios, keys, args.concurrency))
+
+    settings = get_settings()
+    llm = f"{settings.llm_provider}:{_model_name(settings)}"
     summary = EvalSummary.from_results(results)
+    _, markdown_path = write_reports(results, summary, args.reports_dir, args.threshold, llm)
     logger.info(
         "success rate %.2f (%d/%d), tool-call accuracy %.2f, avg %.0f tokens, $%.5f per run",
         summary.success_rate,
@@ -158,22 +189,15 @@ async def _run(scenarios: list[Scenario], keys: dict[Role, str], concurrency: in
         summary.avg_tokens_per_run,
         summary.avg_cost_usd,
     )
-    return 0
+    logger.info("report: %s", markdown_path)
+    if gate_passes(summary, args.threshold):
+        return 0
+    logger.error("eval gate failed: scores below the %.2f threshold", args.threshold)
+    return 1
 
 
-def main(argv: list[str] | None = None) -> int:
-    parser = argparse.ArgumentParser(description="Run the Warden eval suite (real LLM).")
-    parser.add_argument("--only", default="", help="comma-separated scenario ids to run")
-    parser.add_argument("--concurrency", type=int, default=2)
-    args = parser.parse_args(argv)
-    configure_logging("INFO")
-    scenarios = load_scenarios()
-    if args.only:
-        wanted = set(args.only.split(","))
-        scenarios = [scenario for scenario in scenarios if scenario.id in wanted]
-    with tempfile.TemporaryDirectory(prefix="warden-evals-", ignore_cleanup_errors=True) as work:
-        keys = prepare_environment(Path(work))
-        return asyncio.run(_run(scenarios, keys, args.concurrency))
+def _model_name(settings: Settings) -> str:
+    return settings.gemini_model if settings.llm_provider == "gemini" else settings.groq_model
 
 
 if __name__ == "__main__":
