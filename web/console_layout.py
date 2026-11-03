@@ -32,6 +32,18 @@ _STYLES = """
   font-size: 0.78rem; font-weight: 600; white-space: nowrap;
   color: var(--pill); background: color-mix(in srgb, var(--pill) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--pill) 40%, transparent); }
+.warden-timeline { position: relative; margin: 0.25rem 0 1rem 0.9rem;
+  border-left: 1px solid #262A33; }
+.warden-timeline .tl-item { position: relative; display: flex; gap: 0.75rem;
+  padding: 0.35rem 0 0.85rem 1.4rem; }
+.warden-timeline .tl-icon { position: absolute; left: -0.95rem; top: 0.2rem; width: 1.8rem;
+  height: 1.8rem; display: flex; align-items: center; justify-content: center;
+  border-radius: 999px; background: #15171C; border: 1px solid #262A33; font-size: 0.9rem; }
+.warden-timeline .tl-title { font-weight: 600; display: flex; align-items: center;
+  gap: 0.5rem; flex-wrap: wrap; }
+.warden-timeline .tl-tool { font-family: 'JetBrains Mono', monospace; font-weight: 500;
+  font-size: 0.82rem; color: #8B95F7; }
+.warden-timeline .tl-meta { color: #8A90A0; font-size: 0.82rem; margin-top: 0.15rem; }
 </style>
 """
 

@@ -5,7 +5,7 @@ import streamlit as st
 from web.console_layout import setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.run_flow import build_run_flow_dot
-from web.trace_format import expander_title, trace_row
+from web.trace_format import expander_title, timeline_html, trace_row
 from web.warden_api_error import WardenApiError
 
 setup_page("Run detail")
@@ -72,16 +72,21 @@ else:
     st.info("No report yet: the run is still going or waiting for approval.")
 
 st.subheader("Trace")
-st.dataframe(
-    [trace_row(step) for step in steps],
-    hide_index=True,
-    width="stretch",
-    # Wide enough for "awaiting_approval" / "needs_approval" without cutting them off.
-    column_config={
-        "status": st.column_config.TextColumn("status", width="medium"),
-        "decision": st.column_config.TextColumn("decision", width="medium"),
-    },
-)
+st.markdown(timeline_html(steps), unsafe_allow_html=True)
+
+with st.expander("Table view", icon=":material/table_rows:"):
+    st.dataframe(
+        [trace_row(step) for step in steps],
+        hide_index=True,
+        width="stretch",
+        # Wide enough for "awaiting_approval" / "needs_approval" without cutting them off.
+        column_config={
+            "status": st.column_config.TextColumn("status", width="medium"),
+            "decision": st.column_config.TextColumn("decision", width="medium"),
+        },
+    )
+
+st.caption("Step details")
 for step in steps:
     if step["tool_arguments"] or step["output"]:
         with st.expander(expander_title(step)):

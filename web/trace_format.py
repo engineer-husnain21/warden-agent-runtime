@@ -1,6 +1,9 @@
 """How trace rows are shown in the console. Pure functions, so they are easy to test."""
 
+from html import escape
 from typing import Any
+
+from web.console_layout import status_pill
 
 
 def decision_label(step: dict[str, Any]) -> str | None:
@@ -40,3 +43,52 @@ def trace_row(step: dict[str, Any]) -> dict[str, Any]:
         "latency ms": round(step["latency_ms"]),
         "cost $": round(step["cost_usd"], 6),
     }
+
+
+KIND_ICONS = {
+    "plan": "🧭",
+    "tool_selection": "🎯",
+    "permission_check": "🛡️",
+    "approval": "✋",
+    "tool_call": "🔧",
+    "review": "🔍",
+    "report": "📝",
+}
+KIND_TITLES = {
+    "plan": "Plan",
+    "tool_selection": "Select tool",
+    "permission_check": "Permission check",
+    "approval": "Approval",
+    "tool_call": "Tool call",
+    "review": "Review",
+    "report": "Report",
+}
+
+
+def timeline_html(steps: list[dict[str, Any]]) -> str:
+    """The trace as a vertical timeline (HTML; every value from the API is escaped)."""
+    items = [_timeline_item(step) for step in steps]
+    return f'<div class="warden-timeline">{"".join(items)}</div>'
+
+
+def _timeline_item(step: dict[str, Any]) -> str:
+    kind = step["kind"]
+    title = escape(KIND_TITLES.get(kind, kind))
+    tool = (
+        f'<span class="tl-tool">{escape(step["tool_name"])}</span>' if step.get("tool_name") else ""
+    )
+    meta = [escape(str(part)) for part in (step.get("agent"), decision_label(step)) if part]
+    tokens = step["input_tokens"] + step["output_tokens"]
+    if tokens:
+        meta.append(
+            f"{tokens:,} tokens · {step['latency_ms'] / 1000:.1f} s · ${step['cost_usd']:.5f}"
+        )
+    pill = status_pill(step["status"])
+    return (
+        '<div class="tl-item">'
+        f'<div class="tl-icon">{KIND_ICONS.get(kind, "•")}</div>'
+        '<div class="tl-body">'
+        f'<div class="tl-title">#{step["position"]} {title} {tool} {pill}</div>'
+        f'<div class="tl-meta">{" · ".join(meta) or EMPTY_CELL}</div>'
+        "</div></div>"
+    )
