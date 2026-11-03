@@ -59,3 +59,11 @@ def test_app_when_a_run_is_active_says_it_auto_refreshes() -> None:
     app = _run(FakeWardenApiClient())
 
     assert any("Refreshing every 5 s" in caption.value for caption in app.caption)
+
+
+def test_app_when_runs_exist_shows_status_donut() -> None:
+    app = _run(FakeWardenApiClient())
+
+    [donut] = app.get("vega_lite_chart")
+    assert '"Runs by status"' in donut.proto.spec
+    assert '"arc"' in donut.proto.spec

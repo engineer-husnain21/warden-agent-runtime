@@ -93,6 +93,7 @@ class FakeWardenApiClient:
             "awaiting_approval": 1,
             "completed": 0,
             "total_cost_usd": 0.00157,
+            "status_counts": {"awaiting_approval": 1},
             "active": True,
         }
 

@@ -115,6 +115,7 @@ def test_api_client_when_overview_requested_counts_runs_and_sums_cost() -> None:
     )
     assert overview["total_cost_usd"] == pytest.approx(0.003)
     assert overview["active"] is True
+    assert overview["status_counts"] == {"completed": 1, "awaiting_approval": 1, "failed": 1}
 
 
 def test_api_client_when_all_runs_finished_overview_is_not_active() -> None:

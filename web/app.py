@@ -8,6 +8,7 @@ from typing import Any
 import streamlit as st
 
 from web import theme
+from web.charts import status_donut_chart
 from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
@@ -66,24 +67,32 @@ def overview_panel() -> None:
     ]
     st.markdown(metric_row(cards), unsafe_allow_html=True)
 
-    st.subheader("Recent runs")
-    if overview["active"]:
-        st.caption(f"Refreshing every {AUTO_REFRESH_SECONDS} s while runs are active.")
-    if not overview["runs"]:
-        st.info("No runs yet.")
-    for run in overview["runs"]:
-        with st.container(border=True):
-            pill_col, task_col, meta_col, open_col = st.columns(
-                [1.4, 6, 2.2, 1], vertical_alignment="center"
-            )
-            pill_col.markdown(status_pill(run["status"]), unsafe_allow_html=True)
-            task_col.markdown(f"**{run['task']}**")
-            meta_col.caption(
-                f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}"
-            )
-            if open_col.button("Open", key=f"open-{run['id']}"):
-                st.session_state[SELECTED_RUN_KEY] = run["id"]
-                st.switch_page("pages/run_detail.py")
+    runs_col, chart_col = st.columns([3, 1.2])
+    donut = status_donut_chart(overview["status_counts"])
+    if donut is not None:
+        chart_col.altair_chart(donut, width="stretch")
+
+    with runs_col:
+        st.subheader("Recent runs")
+        if overview["active"]:
+            st.caption(f"Refreshing every {AUTO_REFRESH_SECONDS} s while runs are active.")
+        if not overview["runs"]:
+            st.info("No runs yet.")
+        for run in overview["runs"]:
+            _render_run_row(run)
+
+
+def _render_run_row(run: dict[str, Any]) -> None:
+    with st.container(border=True):
+        pill_col, task_col, meta_col, open_col = st.columns(
+            [1.4, 6, 2.2, 1], vertical_alignment="center"
+        )
+        pill_col.markdown(status_pill(run["status"]), unsafe_allow_html=True)
+        task_col.markdown(f"**{run['task']}**")
+        meta_col.caption(f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}")
+        if open_col.button("Open", key=f"open-{run['id']}"):
+            st.session_state[SELECTED_RUN_KEY] = run["id"]
+            st.switch_page("pages/run_detail.py")
 
 
 overview_panel()

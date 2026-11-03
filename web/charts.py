@@ -47,3 +47,27 @@ def step_usage_charts(steps: list[dict[str, Any]]) -> tuple[alt.Chart, alt.Chart
         tooltip=["step:N", alt.Tooltip("cost_usd:Q", format="$.6f")],
     ).properties(title="Cost per step", height=_HEIGHT)
     return tokens, cost
+
+
+def status_donut_chart(status_counts: dict[str, int]) -> alt.Chart | None:
+    """Donut of runs per status, in the status colours. None when there are no runs."""
+    rows = [{"status": status, "runs": count} for status, count in status_counts.items() if count]
+    if not rows:
+        return None
+    statuses = [status for status in theme.STATUS_COLORS if status in status_counts]
+    statuses += [status for status in status_counts if status not in statuses]
+    chart: alt.Chart = (
+        alt.Chart(alt.InlineData(values=rows))
+        .mark_arc(innerRadius=55, outerRadius=95, cornerRadius=4, padAngle=0.02)
+        .encode(
+            theta=alt.Theta("runs:Q"),
+            color=alt.Color(
+                "status:N",
+                scale=alt.Scale(domain=statuses, range=[theme.status_color(s) for s in statuses]),
+                legend=alt.Legend(title=None, orient="bottom"),
+            ),
+            tooltip=["status:N", "runs:Q"],
+        )
+        .properties(title="Runs by status", height=260)
+    )
+    return chart

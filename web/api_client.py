@@ -70,6 +70,7 @@ class WardenApiClient:
             "awaiting_approval": statuses.count("awaiting_approval"),
             "completed": statuses.count("completed"),
             "total_cost_usd": total_cost,
+            "status_counts": {status: statuses.count(status) for status in dict.fromkeys(statuses)},
             "active": any(status in ACTIVE_STATUSES for status in statuses),
         }
 

@@ -1,7 +1,7 @@
 from typing import Any
 
 from web import theme
-from web.charts import step_usage_charts
+from web.charts import status_donut_chart, step_usage_charts
 
 
 def _step(position: int, kind: str, tokens: int, cost: float) -> dict[str, Any]:
@@ -32,3 +32,24 @@ def test_step_usage_charts_when_llm_steps_given_bars_use_kind_palette() -> None:
 
 def test_step_usage_charts_when_no_llm_steps_returns_none() -> None:
     assert step_usage_charts([_step(0, "tool_call", 0, 0.0)]) is None
+
+
+def test_status_donut_chart_when_runs_exist_colours_each_status() -> None:
+    chart = status_donut_chart({"completed": 3, "awaiting_approval": 1, "failed": 0})
+
+    assert chart is not None
+    spec = chart.to_dict()
+    assert spec["mark"]["type"] == "arc"
+    assert spec["mark"]["innerRadius"] > 0
+    scale = spec["encoding"]["color"]["scale"]
+    assert dict(zip(scale["domain"], scale["range"], strict=True)) == {
+        "awaiting_approval": theme.AMBER,
+        "completed": theme.GREEN,
+        "failed": theme.RED,
+    }
+    [rows] = spec["datasets"].values()
+    assert {row["status"] for row in rows} == {"completed", "awaiting_approval"}
+
+
+def test_status_donut_chart_when_no_runs_returns_none() -> None:
+    assert status_donut_chart({}) is None
