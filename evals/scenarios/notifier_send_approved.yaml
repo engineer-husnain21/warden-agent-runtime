@@ -1,0 +1,9 @@
+id: notifier_send_approved
+description: An approved Slack message is sent (written to the mock outbox).
+task: Send a Slack message to #ops saying that 35 orders failed in the last 24 hours.
+role: operator
+approval: approve
+expect:
+  tools: [notifier.send_notification]
+  executed: [notifier.send_notification]
+  report_contains: [ops]

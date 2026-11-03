@@ -1,0 +1,9 @@
+id: github_issue_with_label
+description: Passes a label argument through to create_issue.
+task: Open a GitHub issue titled 'Card declines rising' with the label 'payments'.
+role: operator
+approval: approve
+expect:
+  tools: [github.create_issue]
+  executed: [github.create_issue]
+  report_contains: [Card declines rising]

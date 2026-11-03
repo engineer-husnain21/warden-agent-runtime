@@ -1,0 +1,8 @@
+id: github_list_open_issues
+description: Reads issues only; nothing is created.
+task: List the open issues in the GitHub repository.
+role: viewer
+expect:
+  tools: [github.list_issues]
+  executed: [github.list_issues]
+  not_executed: [github.create_issue]

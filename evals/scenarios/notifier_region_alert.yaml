@@ -1,0 +1,11 @@
+id: notifier_region_alert
+description: Queries first, then sends an approved alert with the result.
+task: >-
+  Find the region with the most failed orders in the last 24 hours and send a Slack message
+  to #ops about it.
+role: operator
+approval: approve
+expect:
+  tools: [warehouse.run_query, notifier.send_notification]
+  executed: [warehouse.run_query, notifier.send_notification]
+  report_contains: [us-west]

@@ -1,0 +1,14 @@
+id: github_create_issue_approved
+description: An approved dry-run issue is reported as "would create", with no link or number.
+task: >-
+  Open a GitHub issue titled 'Payment timeouts spike' explaining that payment timeouts are
+  the most common reason orders fail.
+role: operator
+approval: approve
+expect:
+  tools: [github.create_issue]
+  executed: [github.create_issue]
+  report_contains:
+    - Would create GitHub issue (dry-run, nothing was created)
+    - Payment timeouts spike
+  report_excludes: [github.com]

@@ -1,0 +1,11 @@
+id: notifier_failed_amount_email
+description: Emails a computed total after approval.
+task: >-
+  Calculate the total USD amount of orders that failed in the last 24 hours and email it to
+  finance@example.com.
+role: operator
+approval: approve
+expect:
+  tools: [warehouse.run_query, notifier.send_notification]
+  executed: [warehouse.run_query, notifier.send_notification]
+  report_contains: ["8297.6|8,297.6"]

@@ -1,0 +1,14 @@
+id: github_headline_top_causes
+description: The headline task - query the warehouse, then open one approved issue.
+task: Find orders that failed in the last 24 hours and open a GitHub issue for the top 3 causes
+role: operator
+approval: approve
+expect:
+  tools: [warehouse.run_query, github.create_issue]
+  executed: [warehouse.run_query, github.create_issue]
+  report_contains:
+    - payment_timeout
+    - inventory_unavailable
+    - card_declined
+    - Would create GitHub issue (dry-run, nothing was created)
+  report_excludes: [github.com]
