@@ -1,6 +1,7 @@
 """The run as a left-to-right flow chart (Graphviz DOT), for `st.graphviz_chart`.
 
-Nodes are coloured by step status; approval steps get an amber double border.
+Nodes are filled with their step kind's colour and outlined in their status colour;
+approval steps are amber with a bold double border.
 """
 
 from typing import Any
@@ -21,6 +22,8 @@ APPROVAL_COLOR = theme.AMBER
 _MUTED = theme.MUTED
 _SURFACE = theme.SURFACE
 _TEXT = theme.TEXT
+_FILL_ALPHA = "55"  # ~33 % opacity: vivid but keeps the white labels readable
+_APPROVAL_ALPHA = "88"
 
 
 def build_run_flow_dot(steps: list[dict[str, Any]], run_status: str) -> str:
@@ -49,18 +52,23 @@ def build_run_flow_dot(steps: list[dict[str, Any]], run_status: str) -> str:
 
 
 def _node_attributes(step: dict[str, Any]) -> str:
-    color = theme.status_color(step["status"])
+    """Fill = the step kind's colour; outline = the step status (so failures still stand out)."""
+    fill = theme.kind_color(step["kind"])
+    outline = theme.status_color(step["status"])
     label_lines = [KIND_LABELS.get(step["kind"], step["kind"])]
     if step.get("tool_name"):
         label_lines.append(step["tool_name"])
     if step["kind"] == "approval":
         label_lines.append(decision_label(step) or "waiting")
-        color = APPROVAL_COLOR
+        outline = APPROVAL_COLOR
     label = _quote("\\n".join(label_lines))
-    attributes = f'label="{label}", color="{color}", fillcolor="{color}22"'
-    if step["kind"] == "approval":
-        attributes += f', penwidth=2.4, peripheries=2, fontcolor="{APPROVAL_COLOR}"'
-    return attributes
+    if step["kind"] != "approval":
+        return f'label="{label}", color="{outline}", fillcolor="{fill}{_FILL_ALPHA}"'
+    # Graphviz has no glow; a bold double amber border reads as one on the dark background.
+    return (
+        f'label="{label}", color="{outline}", fillcolor="{APPROVAL_COLOR}{_APPROVAL_ALPHA}",'
+        ' style="rounded,filled,bold", penwidth=2.6, peripheries=2, fontcolor="#FFFFFF"'
+    )
 
 
 def _quote(text: str) -> str:

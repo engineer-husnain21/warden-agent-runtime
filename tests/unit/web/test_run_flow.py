@@ -60,3 +60,20 @@ def test_build_run_flow_dot_when_no_steps_links_task_to_status() -> None:
 
     assert "start -> end;" in dot
     assert 'label="pending"' in dot
+
+
+def test_build_run_flow_dot_when_steps_given_fills_nodes_with_kind_colours() -> None:
+    dot = build_run_flow_dot(STEPS, "completed")
+
+    plan_node = next(line for line in dot.splitlines() if line.strip().startswith("s0 ["))
+    tool_node = next(line for line in dot.splitlines() if line.strip().startswith("s1 ["))
+    assert f'fillcolor="{theme.PURPLE}55"' in plan_node
+    assert f'fillcolor="{theme.PINK}55"' in tool_node
+
+
+def test_build_run_flow_dot_when_approval_uses_bold_amber_fill() -> None:
+    dot = build_run_flow_dot(STEPS, "completed")
+
+    approval_node = next(line for line in dot.splitlines() if line.strip().startswith("s2 ["))
+    assert f'fillcolor="{theme.AMBER}88"' in approval_node
+    assert 'style="rounded,filled,bold"' in approval_node
