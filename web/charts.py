@@ -7,7 +7,8 @@ import altair as alt
 from web import theme
 from web.trace_format import KIND_TITLES
 
-_HEIGHT = 230
+_ROW_HEIGHT = 26
+_AXIS_HEIGHT = 40
 
 
 def step_usage_charts(steps: list[dict[str, Any]]) -> tuple[alt.Chart, alt.Chart] | None:
@@ -25,27 +26,27 @@ def step_usage_charts(steps: list[dict[str, Any]]) -> tuple[alt.Chart, alt.Chart
     ]
     if not rows:
         return None
-    base = alt.Chart(alt.InlineData(values=rows)).mark_bar(
-        cornerRadiusTopLeft=5, cornerRadiusTopRight=5
-    )
+    # Horizontal bars: one row per step, so every step label fits without being thinned out.
+    base = alt.Chart(alt.InlineData(values=rows)).mark_bar(cornerRadiusEnd=4)
     color = alt.Color(
         "kind:N",
         scale=alt.Scale(domain=list(theme.KIND_COLORS), range=list(theme.KIND_COLORS.values())),
         legend=None,
     )
-    x = alt.X("step:N", sort=None, title=None, axis=alt.Axis(labelAngle=-30))
+    y = alt.Y("step:N", sort=None, title=None, axis=alt.Axis(labelOverlap=False, labelLimit=0))
+    height = _ROW_HEIGHT * len(rows) + _AXIS_HEIGHT
     tokens = base.encode(
-        x=x,
-        y=alt.Y("tokens:Q", title="Tokens"),
+        y=y,
+        x=alt.X("tokens:Q", title="Tokens"),
         color=color,
         tooltip=["step:N", alt.Tooltip("tokens:Q", format=",")],
-    ).properties(title="Tokens per step", height=_HEIGHT)
+    ).properties(title="Tokens per step", height=height)
     cost = base.encode(
-        x=x,
-        y=alt.Y("cost_usd:Q", title="USD", axis=alt.Axis(format="$.5f")),
+        y=y,
+        x=alt.X("cost_usd:Q", title="USD", axis=alt.Axis(format="$.4f", tickCount=4)),
         color=color,
         tooltip=["step:N", alt.Tooltip("cost_usd:Q", format="$.6f")],
-    ).properties(title="Cost per step", height=_HEIGHT)
+    ).properties(title="Cost per step", height=height)
     return tokens, cost
 
 

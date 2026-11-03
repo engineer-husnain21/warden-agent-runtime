@@ -30,6 +30,21 @@ def test_step_usage_charts_when_llm_steps_given_bars_use_kind_palette() -> None:
     assert [row["step"] for row in rows] == ["#0 Plan"]
 
 
+def test_step_usage_charts_when_many_steps_labels_every_bar() -> None:
+    steps = [_step(position, "tool_selection", 500, 0.0001) for position in range(12)]
+
+    charts = step_usage_charts(steps)
+
+    assert charts is not None
+    for spec in (chart.to_dict() for chart in charts):
+        axis = spec["encoding"]["y"]["axis"]
+        assert spec["encoding"]["y"]["field"] == "step"
+        assert axis["labelOverlap"] is False  # Vega-Lite would otherwise hide some labels
+        assert spec["height"] >= 12 * 20  # a row per bar
+        [rows] = spec["datasets"].values()
+        assert rows[5]["step"] == "#5 Select tool"
+
+
 def test_step_usage_charts_when_no_llm_steps_returns_none() -> None:
     assert step_usage_charts([_step(0, "tool_call", 0, 0.0)]) is None
 
