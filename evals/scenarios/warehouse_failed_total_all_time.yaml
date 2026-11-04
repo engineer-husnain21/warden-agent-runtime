@@ -1,0 +1,8 @@
+id: warehouse_failed_total_all_time
+description: Counts failed orders across the whole dataset, not only the last day.
+task: How many orders have failed in total, across all orders in the warehouse?
+role: viewer
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: ["80"]

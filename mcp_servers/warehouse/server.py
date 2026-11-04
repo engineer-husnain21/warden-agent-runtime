@@ -15,20 +15,44 @@ Timestamps are UTC text like '2026-10-30 12:00:00', so filter recent rows with
 `created_at >= datetime('now', '-1 day')`. Large results are cut off (`truncated`):
 prefer GROUP BY / LIMIT.
 
-Tables:
+Tables (and the values of category columns; filter on these exact values):
 {schema}"""
+MAX_LISTED_VALUES = 12
 
 
 def describe_schema(store: WarehouseStore) -> str:
-    """`table(column TYPE, ...)` per line, read from the database so it is never out of date."""
+    """`table(column TYPE, ...)` per line plus the values of category-like text columns, read
+    from the database so it is never out of date."""
     try:
         lines = []
         for table in store.list_tables():
-            columns = ", ".join(f"{c['name']} {c['type']}" for c in store.describe_table(table))
-            lines.append(f"- {table}({columns})")
+            columns = store.describe_table(table)
+            lines.append(f"- {table}({', '.join(f'{c["name"]} {c["type"]}' for c in columns)})")
+            values = _category_values(store, table, columns)
+            if values:
+                lines.append(f"  values: {values}")
         return "\n".join(lines)
     except ToolError:
         return "- (unknown: database not seeded yet; use list_tables / describe_table)"
+
+
+def _category_values(store: WarehouseStore, table: str, columns: list[dict[str, Any]]) -> str:
+    """`status in ('completed', 'failed')` for TEXT columns with at most MAX_LISTED_VALUES
+    distinct values, so the model filters on real values instead of guessing them."""
+    parts = []
+    for column in columns:
+        if str(column["type"]).upper() != "TEXT":
+            continue
+        name = column["name"]
+        rows, _ = store.run_query(
+            f'SELECT DISTINCT "{name}" AS value FROM "{table}" '
+            f'WHERE "{name}" IS NOT NULL AND "{name}" != \'\' '
+            f"ORDER BY 1 LIMIT {MAX_LISTED_VALUES + 1}"
+        )
+        if len(rows) <= MAX_LISTED_VALUES:
+            listed = ", ".join(f"'{row['value']}'" for row in rows)
+            parts.append(f"{name} in ({listed})")
+    return "; ".join(parts)
 
 
 def create_server(store: WarehouseStore) -> MCPServer:

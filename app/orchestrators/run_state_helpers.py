@@ -4,8 +4,10 @@ from typing import Any
 
 from langgraph.config import get_stream_writer
 
+from app.agents.tool_result_text import format_tool_result
 from app.schemas.agents.plan_step import PlanStep
 from app.schemas.agents.step_record import StepOutcome, StepRecord
+from app.schemas.agents.step_reviewer_output import StepReviewerOutput
 from app.schemas.policy_decision import PolicyDecision
 from app.schemas.role import Role
 from app.schemas.run_state import RunState
@@ -17,6 +19,8 @@ from app.schemas.tool_result import ToolResult
 from app.schemas.tool_spec import ToolSpec
 
 _RUN_LEVEL_KINDS = {RunStepKind.PLAN, RunStepKind.REPORT}
+# How much of a successful step's result the next steps' tool selector gets to see.
+PREVIOUS_RESULT_CHARS = 1500
 
 
 def emit(state: RunState, kind: RunStepKind, status: RunStepStatus, **fields: Any) -> None:
@@ -90,6 +94,42 @@ def next_step_update(state: RunState) -> dict[str, Any]:
         "approval": None,
         "last_result": None,
     }
+
+
+WRITE_KEPT_WARNING = "The write already ran, so it is not repeated."
+
+
+def review_update(
+    state: RunState,
+    review: StepReviewerOutput,
+    result: ToolResult,
+    max_retries: int,
+    may_retry: bool,
+) -> dict[str, Any]:
+    """After a review: retry the step with the reviewer's feedback, or record its outcome.
+
+    `may_retry` is False when a write already ran (StepRetryPolicy). Then a rejected review
+    does not fail the step: the write is kept and the reviewer's note becomes a warning.
+    """
+    attempt = state.get("attempt", 0)
+    if not review.ok and may_retry and attempt < max_retries:
+        return {"attempt": attempt + 1, "retrying": True, "feedback": review.feedback}
+    step, call = current_step(state), pending_call(state)
+    kept_write = not review.ok and not may_retry
+    outcome: StepOutcome = "succeeded" if review.ok or kept_write else "failed"
+    note = (
+        f"Reviewer warning: {review.feedback} {WRITE_KEPT_WARNING}"
+        if kept_write
+        else review.feedback
+    )
+    update: dict[str, Any] = {
+        "retrying": False,
+        "records": [record(step, outcome, call.tool, result, note)],
+    }
+    if outcome == "succeeded":
+        summary = format_tool_result(result, PREVIOUS_RESULT_CHARS)
+        update["previous_results"] = [f"step {state['current'] + 1} ({call.tool}): {summary}"]
+    return update
 
 
 def approval_request(state: RunState) -> dict[str, Any]:

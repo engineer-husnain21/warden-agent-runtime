@@ -1,0 +1,8 @@
+id: warehouse_describe_orders
+description: Describes the orders table (schema look-up is the expected tool here).
+task: What columns does the orders table in the warehouse have?
+role: viewer
+expect:
+  tools: [warehouse.describe_table]
+  allowed_extra_tools: [warehouse.list_tables, warehouse.run_query]
+  report_contains: [failure_reason, payment_provider, created_at]

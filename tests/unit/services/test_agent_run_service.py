@@ -44,7 +44,7 @@ def _service(
 ) -> AgentRunService:
     tools = tools or FakeToolClient(tools=TOOLS)
     orchestrator = build_orchestrator(FakeLlmClient(llm_replies or []), tools)
-    return AgentRunService(session_factory, audit, orchestrator, tools)
+    return AgentRunService(session_factory, audit, orchestrator)
 
 
 @pytest.fixture
@@ -209,14 +209,13 @@ async def test_resume_pending_when_run_left_running_resumes_it(
     run = await service.create_run("Count orders", ADA)
     await _set_running(session_factory, run.id)
     with pytest.raises(RuntimeError):
-        await collect(dying.stream(run.id, run.task, Role.ADMIN, TOOLS))
+        await collect(dying.stream(run.id, run.task, Role.ADMIN))
 
     tools = FakeToolClient(tools=TOOLS, results={"warehouse.run_query": {"rows": [{"n": 500}]}})
     restarted = AgentRunService(
         session_factory,
         audit,
         build_orchestrator(FakeLlmClient([review(True), "## Summary\nDone."]), tools, checkpointer),
-        tools,
     )
 
     assert await restarted.resume_interrupted_runs() == 1

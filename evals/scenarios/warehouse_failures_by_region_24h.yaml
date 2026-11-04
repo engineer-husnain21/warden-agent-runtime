@@ -1,0 +1,8 @@
+id: warehouse_failures_by_region_24h
+description: Finds the region with the most failed orders in the last 24 hours.
+task: Which region had the most failed orders in the last 24 hours?
+role: operator
+expect:
+  tools: [warehouse.run_query]
+  executed: [warehouse.run_query]
+  report_contains: [us-west, "14"]

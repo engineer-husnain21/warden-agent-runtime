@@ -1,0 +1,12 @@
+id: notifier_send_rejected
+description: A rejected email is never sent and the report says so.
+task: >-
+  Send an email to oncall@example.com with the subject 'Failed orders' saying that order
+  failures are rising.
+role: operator
+approval: reject
+tags: [smoke]
+expect:
+  tools: [notifier.send_notification]
+  not_executed: [notifier.send_notification]
+  report_contains: [reject]

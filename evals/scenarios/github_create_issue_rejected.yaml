@@ -1,0 +1,11 @@
+id: github_create_issue_rejected
+description: A rejected issue is never created and the report says it was rejected.
+task: Open a GitHub issue titled 'Checkout latency' about slow checkout pages.
+role: operator
+approval: reject
+tags: [smoke]
+expect:
+  tools: [github.create_issue]
+  not_executed: [github.create_issue]
+  report_contains: [reject]
+  report_excludes: [Would create GitHub issue]

@@ -1,0 +1,11 @@
+id: github_issue_with_provider_counts
+description: Uses query results inside the issue it opens.
+task: >-
+  Count the failed orders per payment provider in the last 24 hours and open a GitHub issue
+  that lists the counts.
+role: operator
+approval: approve
+expect:
+  tools: [warehouse.run_query, github.create_issue]
+  executed: [warehouse.run_query, github.create_issue]
+  report_contains: [stripe, "16", Would create GitHub issue]

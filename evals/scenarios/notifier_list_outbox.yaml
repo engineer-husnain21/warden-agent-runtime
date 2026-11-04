@@ -1,0 +1,8 @@
+id: notifier_list_outbox
+description: Reads the outbox only; nothing is sent.
+task: Show the most recent notifications in the outbox.
+role: viewer
+expect:
+  tools: [notifier.list_outbox]
+  executed: [notifier.list_outbox]
+  not_executed: [notifier.send_notification]

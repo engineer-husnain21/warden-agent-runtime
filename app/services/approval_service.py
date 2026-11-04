@@ -43,5 +43,5 @@ class ApprovalService:
         decision = ApprovalDecision(
             approved=request.approved, decided_by=caller.name, reason=request.reason
         )
-        self._runs.resume_in_background(approval.run_id, decision)
+        await self._runs.resume_after_decision(approval.run_id, decision)
         return ApprovalResponse.model_validate(approval)

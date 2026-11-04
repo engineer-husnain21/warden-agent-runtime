@@ -1,0 +1,9 @@
+id: policy_viewer_notification_denied
+description: A viewer may not send notifications.
+task: "Send a Slack message to #ops saying that the checkout is down."
+role: viewer
+expect:
+  tools: [notifier.send_notification]
+  denied: [notifier.send_notification]
+  not_executed: [notifier.send_notification]
+  report_contains: ["denied|not allowed|permission"]

@@ -1,0 +1,121 @@
+# 0004: CI eval gate with a real LLM
+
+- **Status:** Accepted
+- **Date:** 2026-11-03
+
+## Context
+
+Unit tests use fake LLM clients (CLAUDE.md section 9). They prove the plumbing: routing,
+permissions, persistence, resume. They cannot prove that the agents still make the right
+decisions with the real model.
+
+On Day 6, the first real run of the headline task failed on a column the model invented
+(`cause` instead of `failure_reason`), while every unit test was green. On Day 7, the first eval
+run found more problems of this kind that no unit test had caught:
+- a filter on `'payment timeout'` instead of `'payment_timeout'`;
+- a race where a run still said `awaiting_approval` after its approval was decided;
+- an eval task that YAML cut short at a `#`.
+
+Prompt, model and tool-description changes need a check that uses the real LLM before merging.
+
+The constraint is the token budget. The Groq free tier for `openai/gpt-oss-120b` allows:
+- 8,000 tokens per minute;
+- 1,000 requests per day;
+- a daily token cap on top of those.
+
+A scenario uses about 3–6k tokens, and the full suite about 120–150k, close to a whole day's
+free-tier budget. Running the full suite on every push to a PR would use up the day's budget
+after one or two runs, and later runs would fail on rate limits instead of on quality.
+
+## Decision
+
+**Scenarios and scoring:**
+- 31 YAML scenarios in `evals/scenarios/`, in four groups: warehouse questions, GitHub,
+  notifier, and permissions/approvals.
+- Each scenario states the task, the caller's role, how the "human" answers approvals, and the
+  expected tools, denials and report facts.
+- `evals/runner.py` drives the real app in-process (httpx `ASGITransport`, real lifespan, real
+  MCP servers) with temp databases and generated API keys.
+- GitHub is always dry-run, so CI never creates an issue.
+- Task success rate is the share of scenarios where every expectation holds. Tool-call accuracy
+  is the mean Jaccard overlap of picked vs expected tools.
+- Both scores must be **≥ 0.8** (`EVAL_THRESHOLD`), otherwise the runner exits 1.
+
+**Two tiers, because of the free-tier token budget:**
+
+| Trigger | Scenarios | Tokens (approx.) | Purpose |
+|---|---|---|---|
+| Pull request to `main` | `smoke` tag: 9 scenarios | 35–45k | Gate every PR |
+| "Run workflow" button (`workflow_dispatch`, default `full`) and local runs | all 31 | 120–150k | Full quality numbers, before a release and for the README |
+
+The smoke subset is tagged in the YAML (`tags: [smoke]`) and selected with `--tag smoke`.
+A unit test keeps it at 8–10 scenarios and makes it cover:
+- every group (warehouse, GitHub, notifier, policy);
+- an approval, a rejection and a policy denial.
+
+The 9 smoke scenarios:
+- warehouse top failure reasons and payment-timeout count, the two schema-hallucination guards;
+- the headline task with approval;
+- a rejected issue;
+- an approved and a rejected notification;
+- a viewer denied an issue;
+- the viewer headline, where the query runs and the issue is denied;
+- an admin write without a pause.
+
+**CI details:** `.github/workflows/evals.yml`.
+- The provider comes from the `LLM_PROVIDER` repository **variable** (`groq` or `gemini`,
+  default `groq` when unset). This is the same `.env` switch the app uses, so moving the gate to
+  another provider needs no code change and no PR.
+- Keys come from repository **secrets**: `GROQ_API_KEY`, and `GEMINI_API_KEY` for Gemini. The
+  job fails at once, with the missing secret's name, when the chosen provider has no key.
+- Optional `GROQ_MODEL` and `GEMINI_MODEL` repository variables override the default model.
+  Groq rate limits are per model, so `GROQ_MODEL=openai/gpt-oss-20b` keeps the gate running on a
+  day when `gpt-oss-120b` is out of quota. A retired Gemini model can be replaced the same way.
+  CI does not override prices, so after a model override the CI cost figures use the default
+  model's prices and are only approximate.
+- The Markdown report goes to the job summary. The JSON report, which holds each scenario's
+  trace and final report, is uploaded as an artifact.
+
+**Rate limits are handled, not avoided:**
+- concurrency 1;
+- the LLM client retries 429s with exponential backoff and honours `Retry-After`, with up to 8
+  attempts during evals;
+- the runner reruns a scenario, after a growing pause, when it failed on a rate limit or another
+  provider error.
+
+## Consequences
+
+- A prompt or model change that breaks tool choice, permissions or report facts fails the PR on
+  the smoke subset, with a per-scenario report that says what went wrong.
+- Regressions outside the smoke subset are caught only by a full run. Run it, with the button or
+  locally, before merging prompt or tool-description changes, and before quoting numbers.
+- The per-minute token limit sets the pace. A smoke run takes about 5–10 minutes and a full run
+  about 25–35 minutes. A full run costs about $0.03 at Groq list prices.
+- A real LLM is not deterministic. The 0.8 threshold leaves room for an occasional miss, but a
+  scenario that fails often is a signal to fix prompts or tool descriptions, never to lower the
+  threshold quietly.
+- Forks do not get the secret, so the eval job only runs for branches of this repository.
+- If the budget becomes a bottleneck, there are three options: a paid tier (then run the full
+  suite on PRs), a nightly full run, or moving the gate to Gemini with the `LLM_PROVIDER`
+  repository variable.
+- Scores are only comparable within one provider and model. Reports and the README name the
+  model with every number.
+
+## Update 2026-11-04: model and provider switch for the gate
+
+On Day 7 a full local run used about 116k Groq tokens. Together with the previous day's runs,
+still inside Groq's rolling daily window, that used up the free-tier budget. The last 6 scenarios
+failed with HTTP 429, and the next requests failed the same way. A PR opened that day would have
+failed the gate on rate limits, not on quality. The workflow now reads `LLM_PROVIDER` and the
+model from repository variables (above), so the gate can move to another model or provider for
+a day without a code change.
+
+Groq limits are per model, and `openai/gpt-oss-20b` still had its full daily quota. That day's
+remaining runs (the 6 rate-limited scenarios, the demo run) used 20b through command-level
+environment overrides, and the README reports eval numbers per model.
+
+Gemini was considered and not used. The free tier is not available for every Google Cloud
+project; this project's key returned HTTP 403 ("free tier is not available for this project"),
+and enabling billing was declined. Also, `gemini-2.5-flash` (the `Settings` default) is closed to
+new users, which is why the `GEMINI_MODEL` override exists. The Gemini support stays in the code
+and the workflow for when billing is available.

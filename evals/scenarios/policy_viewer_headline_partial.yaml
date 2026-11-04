@@ -1,0 +1,12 @@
+id: policy_viewer_headline_partial
+description: A viewer runs the headline task - the query runs, the issue is denied.
+task: Find orders that failed in the last 24 hours and open a GitHub issue for the top 3 causes
+role: viewer
+tags: [smoke]
+expect:
+  tools: [warehouse.run_query, github.create_issue]
+  executed: [warehouse.run_query]
+  denied: [github.create_issue]
+  not_executed: [github.create_issue]
+  report_contains: [payment_timeout]
+  report_excludes: [Would create GitHub issue]

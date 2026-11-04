@@ -35,7 +35,6 @@ async def _paused_run(
         session_factory,
         audit,
         build_orchestrator(FakeLlmClient(replies + after_resume), tools),
-        tools,
     )
     run = await runs.create_run("Open an issue", OSCAR)
     await runs.execute_run(run.id)
@@ -69,6 +68,21 @@ async def test_decide_when_admin_approves_resumes_run_to_completion(
     assert await approvals.list_pending() == []
     granted = [e for e in await audit.list_entries(ADA, run_id=run_id) if e.actor == "ada"]
     assert [e.action for e in granted] == [AuditAction.APPROVAL_GRANTED]
+
+
+async def test_decide_when_returned_run_is_already_running(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    """No window where the run still says awaiting_approval but nothing is pending."""
+    approvals, runs, *_ = await _paused_run(
+        session_factory, [review(True), "## Summary\nOpened issue #7."]
+    )
+    [pending] = await approvals.list_pending()
+
+    await approvals.decide(pending.id, ApprovalDecisionRequest(approved=True), ADA)
+
+    assert (await runs.get_run(pending.run_id)).status is AgentRunStatus.RUNNING
+    await runs.drain()
 
 
 async def test_decide_when_rejected_completes_run_without_tool_call(

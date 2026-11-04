@@ -14,6 +14,8 @@ Every request follows one path, top to bottom:
 main.py → middlewares → routers → services → orchestrators → agents → clients (LLM, search, external APIs)
                                      ↓              ↓                     ↓ (MCP over stdio)
                                repositories → db  policies (pure)  mcp_servers/<name>/ (separate processes)
+
+evals/runner.py → app.main.create_app() over in-process HTTP (httpx ASGITransport) → the same flow as above
 ```
 
 ---
@@ -38,9 +40,11 @@ project-root/
     models/              # DB entities (SQLAlchemy)
     db/                  # DB session and setup
   mcp_servers/           # MCP servers, one folder each, run as separate processes (never imported by app/)
+  evals/                 # Eval suite: scenarios/*.yaml, runner.py, reports/ (git-ignored); drives app/ over HTTP
   tests/
     unit/                # Mirrors app/ folder by folder
     integration/         # End-to-end flows
+    fakes/               # Fake clients implementing the client Protocols (no network)
   web/                   # Frontend (if any)
   data/                  # Sample/demo data
   .env.example           # All env vars with dummy values
@@ -62,7 +66,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `routers/` | Receive request, validate with schema, call one service, return response | Logic, DB calls, LLM calls |
 | `services/` | Business rules, decide what happens, call orchestrators and repositories | Talk to HTTP or LLM APIs directly |
 | `orchestrators/` | Decide which agent runs, in what order, and pass data between them | DB calls, direct LLM calls |
-| `policies/` | Decide allow / deny / needs_approval from rules in `core/config.py`; called by orchestrators | I/O of any kind (DB, network, files), call agents or clients |
+| `policies/` | Decide allow / deny / needs_approval, and whether a step may be retried, from rules in `core/config.py`; called by orchestrators | I/O of any kind (DB, network, files), call agents or clients |
 | `agents/` | One focused AI task each (plan, research, write, review) | Touch the DB, call other agents directly |
 | `clients/` | The only place that talks to outside APIs (LLM, search, email, etc.) | Business logic |
 | `repositories/` | All reads and writes to DB or files | Business logic |
@@ -71,6 +75,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `prompts/` | Prompt text, one file per prompt | Code |
 | `core/` | Settings, DI setup, logger, exception classes | Feature logic |
 | `mcp_servers/` | Expose tools over MCP, each server in its own process with its own settings | Import from `app/`; get imported by `app/` (reached only via `McpToolClient`) |
+| `evals/` | Run YAML scenarios against the real app over HTTP, score them, write reports, enforce the threshold | Import `app/` beyond `app.main`, `app.core` and `app.schemas`; get imported by `app/` |
 
 ---
 
@@ -114,6 +119,7 @@ Every folder inside `app/` has an `__init__.py`.
 | Policies | `<subject>_policy.py` holding `<Subject>Policy` | `tool_permission_policy.py` |
 | MCP servers | `mcp_servers/<name>/server.py` with `create_server()`; settings class `<Name>Settings` | `mcp_servers/warehouse/server.py` |
 | MCP tool names | snake_case verb, addressed by the app as `<server>.<tool>` | `warehouse.run_query` |
+| Eval scenarios | `evals/scenarios/<group>_<what>.yaml`, `id` = file stem; group is `warehouse`, `github`, `notifier` or `policy` | `github_create_issue_approved.yaml` |
 
 **Suffix list:** `Service`, `Orchestrator`, `Agent`, `Client`, `Repository`, `Policy`, `Request`, `Response`, `Input`, `Output`, `Middleware`, `Error`.
 
@@ -251,14 +257,14 @@ Web console in `web/` (Streamlit) for runs, traces and approvals.
 | Thing | Location | Class names |
 |---|---|---|
 | Task-run graph (LangGraph) | `app/orchestrators/` | `AgentRunOrchestrator` |
-| Agents (one job each) | `app/agents/` | `PlannerAgent` (splits task into steps), `ToolSelectorAgent` (picks tool + arguments for one step), `StepReviewerAgent` (judges if a step result is good enough), `ReporterAgent` (writes final report) |
+| Agents (one job each) | `app/agents/` | `PlannerAgent` (splits task into steps), `ToolSelectorAgent` (picks tool + arguments for one step), `StepReviewerAgent` (judges if a step result is good enough), `ReporterAgent` (writes final report); non-LLM (ADR 0001): `ToolCatalogAgent` (lists the tools a run can use), `ToolExecutorAgent` (runs one approved tool call) |
 | LLM access | `app/clients/` | Protocol `LlmClient`; `GroqLlmClient`, `GeminiLlmClient` |
 | MCP tool access | `app/clients/` | Protocol `ToolClient`; `McpToolClient` |
 | LangGraph checkpoints | `app/repositories/` | `CheckpointRepository` (injected into the orchestrator through DI; the orchestrator never opens DB sessions) |
 | Runs, steps, approvals, audit | `app/repositories/` + `app/models/` | `AgentRunRepository`, `ApprovalRepository`, `AuditLogRepository`; entities `AgentRun`, `RunStep`, `Approval`, `AuditLogEntry` |
 | Business logic | `app/services/` | `AgentRunService`, `ApprovalService`, `AuditService` |
 | API-key → role | `app/middlewares/` | `ApiKeyAuthMiddleware` |
-| **New layer:** permission decisions | `app/policies/` | Suffix `Policy`. `ToolPermissionPolicy` returns `allow` / `deny` / `needs_approval` for a tool call + role. Pure logic, no I/O. Called by orchestrators. Rules come from `core/config.py`. |
+| **New layer:** permission decisions | `app/policies/` | Suffix `Policy`. `ToolPermissionPolicy` returns `allow` / `deny` / `needs_approval` for a tool call + role. `StepRetryPolicy` says whether a reviewer-rejected step may be retried (never after a write ran). Pure logic, no I/O. Called by orchestrators. Rules come from `core/config.py`. |
 | **New, outside `app/`:** MCP servers | `mcp_servers/<name>/` | Separate processes, own `server.py`. `warehouse` (read-only SQL on a demo SQLite database seeded from `data/`), `github` (list/create issues on a test repo), `notifier` (mock: writes to an outbox table). The app never imports from here. |
 | **New, outside `app/`:** eval suite | `evals/` | `scenarios/*.yaml`, `runner.py`, `reports/` (git-ignored). |
 | Fake clients for unit tests | `tests/fakes/` | `Fake<Name>Client` (e.g. `FakeLlmClient`, `FakeToolClient`). They implement the client Protocols with scripted results and no network. Unit tests use only these. |

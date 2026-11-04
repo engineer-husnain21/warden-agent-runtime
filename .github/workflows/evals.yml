@@ -1,0 +1,81 @@
+name: Evals
+
+# Real-LLM eval gate (docs/adr/0004). Pull requests to main run the `smoke` subset; the full
+# suite runs from the "Run workflow" button (and locally). GitHub stays in dry-run:
+# evals/eval_environment.py forces it, so no real issue is ever created from CI.
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      suite:
+        description: Which scenarios to run
+        type: choice
+        options: [full, smoke]
+        default: full
+
+concurrency:
+  group: evals-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  evals:
+    name: eval gate (real LLM)
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    env:
+      # Provider switch without a code change: repository variable LLM_PROVIDER (groq | gemini).
+      LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'groq' }}
+      GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Optional repository variables; when empty, the Settings default model is used.
+      # Groq rate limits are per model, so GROQ_MODEL can move the gate to a model with quota left.
+      GROQ_MODEL_OVERRIDE: ${{ vars.GROQ_MODEL }}
+      GEMINI_MODEL_OVERRIDE: ${{ vars.GEMINI_MODEL }}
+      EVAL_THRESHOLD: "0.8"
+      SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'smoke' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.12"
+          enable-cache: true
+
+      - name: Install dependencies
+        run: uv sync --locked
+
+      - name: Check the provider's API key secret
+        run: |
+          case "$LLM_PROVIDER" in
+            groq) key="$GROQ_API_KEY"; name=GROQ_API_KEY ;;
+            gemini) key="$GEMINI_API_KEY"; name=GEMINI_API_KEY ;;
+            *) echo "::error::LLM_PROVIDER must be groq or gemini, got '$LLM_PROVIDER'."; exit 1 ;;
+          esac
+          if [ -z "$key" ]; then
+            echo "::error::LLM_PROVIDER is $LLM_PROVIDER but the $name repository secret is not set."
+            exit 1
+          fi
+
+      # Concurrency 1: the provider's per-minute limit, not the runner, sets the pace.
+      - name: Run evals (${{ env.SUITE }}, ${{ env.LLM_PROVIDER }})
+        run: |
+          if [ -n "$GROQ_MODEL_OVERRIDE" ]; then export GROQ_MODEL="$GROQ_MODEL_OVERRIDE"; fi
+          if [ -n "$GEMINI_MODEL_OVERRIDE" ]; then export GEMINI_MODEL="$GEMINI_MODEL_OVERRIDE"; fi
+          if [ "$SUITE" = "smoke" ]; then
+            uv run python -m evals.runner --concurrency 1 --tag smoke
+          else
+            uv run python -m evals.runner --concurrency 1
+          fi
+
+      - name: Add the report to the job summary
+        if: always()
+        run: cat evals/reports/latest.md >> "$GITHUB_STEP_SUMMARY" || true
+
+      - name: Upload the eval reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eval-reports-${{ env.SUITE }}
+          path: evals/reports/
+          if-no-files-found: ignore

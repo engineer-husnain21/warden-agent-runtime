@@ -22,7 +22,8 @@ def create_server(store: OutboxStore) -> MCPServer:
     def send_notification(
         channel: Literal["email", "slack"], recipient: str, subject: str, message: str
     ) -> dict[str, Any]:
-        """Send a notification to a person or channel. This is a real write: it needs approval."""
+        """Send a notification by email or Slack: channel 'email' with an address as recipient,
+        or channel 'slack' with a Slack channel (e.g. '#ops') or user. This is a real write."""
         if not recipient.strip() or not subject.strip() or not message.strip():
             raise ToolError("recipient, subject and message must not be empty")
         if len(subject) > MAX_SUBJECT_LENGTH or len(message) > MAX_MESSAGE_LENGTH:

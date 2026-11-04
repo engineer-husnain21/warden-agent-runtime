@@ -37,6 +37,20 @@ async def test_run_query_description_when_seeded_lists_real_columns(server: MCPS
     assert "failure_reason TEXT" in run_query.description
 
 
+async def test_run_query_description_when_seeded_lists_category_values(server: MCPServer) -> None:
+    # The model once filtered on 'payment timeout' (space) and counted 0; show the real values.
+    async with Client(server) as client:
+        tools = await client.list_tools()
+
+    description = next(t for t in tools.tools if t.name == "run_query").description or ""
+    assert "failure_reason in ('address_validation_failed', 'card_declined'," in description
+    assert "'payment_timeout'" in description
+    assert "status in ('completed', 'failed', 'pending', 'refunded')" in description
+    # High-cardinality text columns (ids, timestamps) are not listed.
+    assert "customer_id in" not in description
+    assert "created_at in" not in description
+
+
 def test_describe_schema_when_database_missing_falls_back(tmp_path: Path) -> None:
     text = describe_schema(WarehouseStore(tmp_path / "missing.db"))
 
