@@ -28,7 +28,9 @@ jobs:
       LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'groq' }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
       GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-      # Optional repository variable; when empty, the Settings default model is used.
+      # Optional repository variables; when empty, the Settings default model is used.
+      # Groq rate limits are per model, so GROQ_MODEL can move the gate to a model with quota left.
+      GROQ_MODEL_OVERRIDE: ${{ vars.GROQ_MODEL }}
       GEMINI_MODEL_OVERRIDE: ${{ vars.GEMINI_MODEL }}
       EVAL_THRESHOLD: "0.8"
       SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'smoke' }}
@@ -58,6 +60,7 @@ jobs:
       # Concurrency 1: the provider's per-minute limit, not the runner, sets the pace.
       - name: Run evals (${{ env.SUITE }}, ${{ env.LLM_PROVIDER }})
         run: |
+          if [ -n "$GROQ_MODEL_OVERRIDE" ]; then export GROQ_MODEL="$GROQ_MODEL_OVERRIDE"; fi
           if [ -n "$GEMINI_MODEL_OVERRIDE" ]; then export GEMINI_MODEL="$GEMINI_MODEL_OVERRIDE"; fi
           if [ "$SUITE" = "smoke" ]; then
             uv run python -m evals.runner --concurrency 1 --tag smoke
