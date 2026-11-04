@@ -243,9 +243,37 @@ So an eval never touches your data, your keys or GitHub. It writes `evals/report
   notifier, approve, reject and deny;
 - the full suite runs from the workflow's **Run workflow** button and locally.
 
-Both use the 0.8 gate.
+Both use the 0.8 gate. CI picks the provider and model from repository variables
+(`LLM_PROVIDER`, `GROQ_MODEL`), so the gate can move to a model with quota left without a code
+change.
 
-<!-- EVAL-RESULTS -->
+### Results
+
+Full suite on 2026-11-04 (`evals/reports/`, local, concurrency 2), with numbers per model:
+
+| Run | Model | Scenarios | Task success | Tool-call accuracy | Avg tokens / run | Avg cost / run | Gate |
+|---|---|---|---|---|---|---|---|
+| Full suite | `openai/gpt-oss-120b` | 31 | **0.81** (25/31) | **0.76** | 3,747 | $0.00087 | failed |
+| ↳ the 25 that reached the model | `openai/gpt-oss-120b` | 25 | 1.00 (25/25) | 0.94 | 4,479 | $0.00103 | — |
+| Rerun of the other 6 | `openai/gpt-oss-20b` | 6 | 1.00 (6/6) | 0.94 | 5,656 | $0.00068 | passed |
+
+How to read this:
+- **The gate failed on rate limits, not on quality.** All 6 failures on 120b were Groq HTTP 429:
+  the suite ran out of the model's daily token quota. Those scenarios never got an answer from
+  the model, and each one scored 0 accuracy, which pulled tool-call accuracy down to 0.76.
+- **The 6 passed on another model.** Groq limits are per model, so the 6 were rerun on
+  `gpt-oss-20b` the same day, and all 6 passed. Every one of the 31 scenarios has a passing
+  result. Because that total mixes two models, it is not quoted as one score.
+- **Where tool accuracy is below 1.0**, it is always the same habit. In 4 scenarios the model
+  ran an extra `warehouse.run_query` before a write whose content the task already gave. The
+  run still succeeded, but the extra query cost tokens.
+- **Progress:** the first full run on 2026-11-03 passed 22/31 (0.71). Lesson 3 below covers what
+  the failures were and how they were fixed.
+- **Cost:** a full 120b run costs about $0.03 at Groq list prices, and the headline task about
+  $0.0016. Costs are estimates from per-model prices in settings.
+- **Per-model behaviour differs.** The 20b demo run ([docs/demo/demo.md](docs/demo/demo.md))
+  shows where the smaller model is weaker: an empty plan, and a reviewer that rejected a dry-run
+  result. The 120b numbers are the reference.
 
 ## Design decisions
 
@@ -338,6 +366,31 @@ The questions are about "the last 24 hours", but a seeded database ages. `data/o
 starts the warehouse server, and `WAREHOUSE_SEED_ON_STARTUP=true` re-seeds it each time, so the
 demo and the evals always have fresh data. Leave the flag off when you point the warehouse at
 real data.
+
+### 5. A retry can repeat a side effect, and approval does not prevent it
+
+In the demo run on `gpt-oss-20b` ([docs/demo/demo.md](docs/demo/demo.md)):
+- the reviewer rejected a successful dry-run `github.create_issue` because "the issue was not
+  actually created";
+- the orchestrator retried the step, and the retry paused for a second approval;
+- after that approval, the call ran a second time.
+
+The permission design held: each call needed its own approval, and the audit log shows both.
+But in live mode this would have opened two real issues.
+
+The open fix is in the orchestrator, not the prompt: retry a write tool only when the call
+itself failed, never after a successful call that the reviewer disliked. Until then, an admin
+who sees the same call twice should reject the second one.
+
+### 6. Rate limits are part of the eval design
+
+Groq's free tier counts tokens per day, per model, in a rolling window. One full suite plus the
+previous day's runs used up `gpt-oss-120b`, and the last 6 scenarios failed with HTTP 429. Three
+things kept that from turning into a false "the agent got worse":
+- the runner records the provider error per scenario;
+- the README reports numbers per model;
+- CI can move to another model through a repository variable
+  ([ADR 0004](docs/adr/0004-ci-eval-gate.md)).
 
 ## Configuration
 
