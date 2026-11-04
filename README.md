@@ -26,6 +26,7 @@ Warden is a small, complete answer to those questions.
 ## Contents
 
 - [What it does](#what-it-does)
+- [Console](#console)
 - [How a run works](#how-a-run-works)
 - [Architecture](#architecture)
 - [Quickstart](#quickstart)
@@ -52,6 +53,29 @@ Warden is a small, complete answer to those questions.
 
 The web console (Streamlit) shows runs, a live trace, the run as a flow chart, per-step
 token and cost charts, and an approvals inbox.
+
+## Console
+
+Screenshots of real runs, with GitHub in dry-run. A full API transcript of the approval run is
+in [docs/demo/demo.md](docs/demo/demo.md).
+
+**Approvals inbox.** An operator's run paused before `github.create_issue`. The call waits for an
+admin, with the policy's reason and the exact arguments (run `20eb19ba`, `gpt-oss-20b`):
+
+![Approval card for github.create_issue](docs/images/06-approval-inbox.png)
+
+**Run detail** of the headline task (run `99b5fdfe`, `gpt-oss-120b`), after an admin approved
+the issue. It shows the status, LLM calls, tokens, latency and estimated cost for the whole run:
+
+![Run detail with metric cards](docs/images/01-run-detail-overview.png)
+
+| Run flow, with the approval step | Tokens and cost per step |
+|---|---|
+| ![Run flow chart](docs/images/02-run-flow.png) | ![Tokens and cost per step](docs/images/03-cost-per-step.png) |
+
+| Final report and step trace | Home: recent runs and totals |
+|---|---|
+| ![Report and trace](docs/images/04-report-and-trace.png) | ![Agent runs home page](docs/images/08-agent-runs-home.png) |
 
 ## How a run works
 
