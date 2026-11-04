@@ -271,7 +271,7 @@ Notes:
   - full suite on `gpt-oss-120b`: 25/31 (0.81), tool accuracy 0.76. The gate failed, because all 6 failures were HTTP 429 (daily quota);
   - the 6 were rerun on `gpt-oss-20b` (command-level `GROQ_MODEL` override): 6/6, 0.94.
 - **Gemini** was tried and not used: the free tier is unavailable for the project (403, billing required), and `gemini-2.5-flash` is closed to new users. The Gemini support code stays.
-- **Demo:** `docs/demo/demo.md`, real run `20eb19ba` on 20b. A reviewer retry caused a second approval and a repeated dry-run side effect, recorded as README lesson 5 and an open follow-up. **GIF skipped** (user decision).
+- **Demo:** `docs/demo/demo.md`, real run `20eb19ba` on 20b. A reviewer retry caused a second approval and a repeated dry-run side effect. **Fixed in this PR:** `StepRetryPolicy` + `READ_ONLY_TOOLS`, so a write that ran is never retried; tests in `test_agent_run_orchestrator_retries.py`; README lesson 5. **GIF skipped** (user decision).
 - **Screenshots:** `docs/images/01–04, 06, 08`. Dropped: `05` (Swagger UI has no dark theme) and `07` (would need another viewer run).
 
 **Final review checklist:** sections 1–4 (flow, folders, `__init__.py`, no upward or skipped imports), 5 (naming/suffixes), 6 (agents), 7 (no hardcoded keys, `.env.example` complete), 8 (ruff/mypy/no print/≤ 300 lines), 9 (every agent and service tested), 10 & 12.4 (no secrets, no squash merges), 12.3 placements.
