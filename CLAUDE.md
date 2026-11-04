@@ -66,7 +66,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `routers/` | Receive request, validate with schema, call one service, return response | Logic, DB calls, LLM calls |
 | `services/` | Business rules, decide what happens, call orchestrators and repositories | Talk to HTTP or LLM APIs directly |
 | `orchestrators/` | Decide which agent runs, in what order, and pass data between them | DB calls, direct LLM calls |
-| `policies/` | Decide allow / deny / needs_approval from rules in `core/config.py`; called by orchestrators | I/O of any kind (DB, network, files), call agents or clients |
+| `policies/` | Decide allow / deny / needs_approval, and whether a step may be retried, from rules in `core/config.py`; called by orchestrators | I/O of any kind (DB, network, files), call agents or clients |
 | `agents/` | One focused AI task each (plan, research, write, review) | Touch the DB, call other agents directly |
 | `clients/` | The only place that talks to outside APIs (LLM, search, email, etc.) | Business logic |
 | `repositories/` | All reads and writes to DB or files | Business logic |
@@ -264,7 +264,7 @@ Web console in `web/` (Streamlit) for runs, traces and approvals.
 | Runs, steps, approvals, audit | `app/repositories/` + `app/models/` | `AgentRunRepository`, `ApprovalRepository`, `AuditLogRepository`; entities `AgentRun`, `RunStep`, `Approval`, `AuditLogEntry` |
 | Business logic | `app/services/` | `AgentRunService`, `ApprovalService`, `AuditService` |
 | API-key → role | `app/middlewares/` | `ApiKeyAuthMiddleware` |
-| **New layer:** permission decisions | `app/policies/` | Suffix `Policy`. `ToolPermissionPolicy` returns `allow` / `deny` / `needs_approval` for a tool call + role. Pure logic, no I/O. Called by orchestrators. Rules come from `core/config.py`. |
+| **New layer:** permission decisions | `app/policies/` | Suffix `Policy`. `ToolPermissionPolicy` returns `allow` / `deny` / `needs_approval` for a tool call + role. `StepRetryPolicy` says whether a reviewer-rejected step may be retried (never after a write ran). Pure logic, no I/O. Called by orchestrators. Rules come from `core/config.py`. |
 | **New, outside `app/`:** MCP servers | `mcp_servers/<name>/` | Separate processes, own `server.py`. `warehouse` (read-only SQL on a demo SQLite database seeded from `data/`), `github` (list/create issues on a test repo), `notifier` (mock: writes to an outbox table). The app never imports from here. |
 | **New, outside `app/`:** eval suite | `evals/` | `scenarios/*.yaml`, `runner.py`, `reports/` (git-ignored). |
 | Fake clients for unit tests | `tests/fakes/` | `Fake<Name>Client` (e.g. `FakeLlmClient`, `FakeToolClient`). They implement the client Protocols with scripted results and no network. Unit tests use only these. |

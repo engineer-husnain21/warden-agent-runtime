@@ -51,6 +51,9 @@ class Settings(BaseSettings):
     # Runs: plan length cap and how often a step is retried after a failed review.
     max_steps: int = 6
     max_step_retries: int = 1
+    # Tools without side effects (`server.tool`, `server.*` or `*`). Only these are retried after
+    # a successful call; any other tool that ran is never run again for the same step.
+    read_only_tools: list[str] = ["warehouse.*", "github.list_issues", "notifier.list_outbox"]
 
     groq_api_key: SecretStr | None = None
     groq_model: str = "openai/gpt-oss-120b"
