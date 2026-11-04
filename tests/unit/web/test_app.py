@@ -1,10 +1,12 @@
 from pathlib import Path
+from typing import Any
 
 from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
 from tests.unit.web.page_helpers import metric_cards
 from web import theme
+from web.console_layout import run_row_key
 
 APP = Path(__file__).resolve().parents[3] / "web" / "app.py"
 
@@ -25,6 +27,24 @@ def test_app_when_runs_exist_shows_a_row_with_status_pill() -> None:
     assert "awaiting approval" in pills[0]
     assert theme.AMBER in pills[0]
     assert app.button(key="open-r1") is not None
+
+
+def _block_ids(node: Any) -> list[str]:
+    proto: Any = getattr(node, "proto", None)
+    ids = [proto.id] if type(proto).__name__ == "Block" and proto.id else []
+    for child in getattr(node, "children", {}).values():
+        ids += _block_ids(child)
+    return ids
+
+
+def test_app_when_runs_exist_renders_each_row_in_a_styled_keyed_container() -> None:
+    app = _run(FakeWardenApiClient())
+
+    # The `st-key-run-row-*` class carries the fixed pill / wrapping task / Open button widths.
+    assert any(block_id.endswith(run_row_key("r1")) for block_id in _block_ids(app._tree))
+    styles = next(b.value for b in app.markdown if "<style>" in b.value)
+    assert 'div[class*="st-key-run-row-"] > :first-child' in styles
+    assert "white-space: nowrap" in styles
 
 
 def test_app_when_task_submitted_creates_run() -> None:

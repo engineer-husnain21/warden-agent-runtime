@@ -5,7 +5,7 @@ from streamlit.testing.v1 import AppTest
 
 from tests.fakes.fake_warden_api_client import FakeWardenApiClient
 from web import theme
-from web.console_layout import metric_card, metric_row, short_time, status_pill
+from web.console_layout import metric_card, metric_row, run_row_key, short_time, status_pill
 
 WEB = Path(__file__).resolve().parents[3] / "web"
 PAGES = [WEB / "app.py", WEB / "pages" / "run_detail.py", WEB / "pages" / "approvals.py"]
@@ -46,6 +46,10 @@ def test_status_pill_when_status_unknown_falls_back_to_grey_and_escapes() -> Non
 
     assert f"--pill: {theme.MUTED}" in pill
     assert "&lt;weird&gt;" in pill
+
+
+def test_run_row_key_when_built_matches_the_styled_class_prefix() -> None:
+    assert run_row_key("r1") == "run-row-r1"
 
 
 def test_short_time_when_iso_timestamp_shows_minutes() -> None:

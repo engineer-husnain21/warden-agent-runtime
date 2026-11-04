@@ -32,6 +32,13 @@ _RULES = """
   font-size: 0.78rem; font-weight: 600; white-space: nowrap;
   color: var(--pill); background: color-mix(in srgb, var(--pill) 16%, transparent);
   border: 1px solid color-mix(in srgb, var(--pill) 40%, transparent); }
+div[class*="st-key-run-row-"] { flex-wrap: nowrap; gap: 0.9rem; }
+/* Pill column fits the widest status ("awaiting approval", ~128px) so pills never overlap. */
+div[class*="st-key-run-row-"] > :first-child { flex: 0 0 8.5rem; width: 8.5rem; min-width: 8.5rem; }
+div[class*="st-key-run-row-"] > :nth-child(2) { flex: 1 1 0; min-width: 0;
+  overflow-wrap: anywhere; }
+div[class*="st-key-run-row-"] > :last-child { flex: 0 0 auto; min-width: 5rem; }
+div[class*="st-key-run-row-"] > :last-child button { min-width: 5rem; white-space: nowrap; }
 .w-metric-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
   gap: 0.9rem; margin: 0.5rem 0 1.25rem; }
 .w-metric { display: flex; align-items: center; gap: 0.85rem; padding: 0.95rem 1.1rem;
