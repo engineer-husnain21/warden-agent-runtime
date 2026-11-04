@@ -24,8 +24,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 75
     env:
-      LLM_PROVIDER: groq
+      # Provider switch without a code change: repository variable LLM_PROVIDER (groq | gemini).
+      LLM_PROVIDER: ${{ vars.LLM_PROVIDER || 'groq' }}
       GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
+      GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+      # Optional repository variable; when empty, the Settings default model is used.
+      GEMINI_MODEL_OVERRIDE: ${{ vars.GEMINI_MODEL }}
       EVAL_THRESHOLD: "0.8"
       SUITE: ${{ github.event_name == 'workflow_dispatch' && inputs.suite || 'smoke' }}
     steps:
@@ -39,15 +43,22 @@ jobs:
       - name: Install dependencies
         run: uv sync --locked
 
-      - name: Check the Groq secret
-        if: env.GROQ_API_KEY == ''
+      - name: Check the provider's API key secret
         run: |
-          echo "::error::The GROQ_API_KEY repository secret is not set."
-          exit 1
+          case "$LLM_PROVIDER" in
+            groq) key="$GROQ_API_KEY"; name=GROQ_API_KEY ;;
+            gemini) key="$GEMINI_API_KEY"; name=GEMINI_API_KEY ;;
+            *) echo "::error::LLM_PROVIDER must be groq or gemini, got '$LLM_PROVIDER'."; exit 1 ;;
+          esac
+          if [ -z "$key" ]; then
+            echo "::error::LLM_PROVIDER is $LLM_PROVIDER but the $name repository secret is not set."
+            exit 1
+          fi
 
-      # Concurrency 1: Groq's per-minute token limit, not the runner, sets the pace.
-      - name: Run evals (${{ env.SUITE }})
+      # Concurrency 1: the provider's per-minute limit, not the runner, sets the pace.
+      - name: Run evals (${{ env.SUITE }}, ${{ env.LLM_PROVIDER }})
         run: |
+          if [ -n "$GEMINI_MODEL_OVERRIDE" ]; then export GEMINI_MODEL="$GEMINI_MODEL_OVERRIDE"; fi
           if [ "$SUITE" = "smoke" ]; then
             uv run python -m evals.runner --concurrency 1 --tag smoke
           else
