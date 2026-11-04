@@ -68,8 +68,11 @@ The 9 smoke scenarios:
   another provider needs no code change and no PR.
 - Keys come from repository **secrets**: `GROQ_API_KEY`, and `GEMINI_API_KEY` for Gemini. The
   job fails at once, with the missing secret's name, when the chosen provider has no key.
-- An optional `GEMINI_MODEL` repository variable overrides the default Gemini model, so a model
-  that Google retires can be replaced from the repository settings.
+- Optional `GROQ_MODEL` and `GEMINI_MODEL` repository variables override the default model.
+  Groq rate limits are per model, so `GROQ_MODEL=openai/gpt-oss-20b` keeps the gate running on a
+  day when `gpt-oss-120b` is out of quota. A retired Gemini model can be replaced the same way.
+  CI does not override prices, so after a model override the CI cost figures use the default
+  model's prices and are only approximate.
 - The Markdown report goes to the job summary. The JSON report, which holds each scenario's
   trace and final report, is uploaded as an artifact.
 
@@ -98,15 +101,21 @@ The 9 smoke scenarios:
 - Scores are only comparable within one provider and model. Reports and the README name the
   model with every number.
 
-## Update 2026-11-04: provider switch for the gate
+## Update 2026-11-04: model and provider switch for the gate
 
 On Day 7 a full local run used about 116k Groq tokens. Together with the previous day's runs,
 still inside Groq's rolling daily window, that used up the free-tier budget. The last 6 scenarios
 failed with HTTP 429, and the next requests failed the same way. A PR opened that day would have
-failed the gate on rate limits, not on quality. The workflow now reads `LLM_PROVIDER` from a
-repository variable (above), so the gate can move to Gemini for a day without a code change.
+failed the gate on rate limits, not on quality. The workflow now reads `LLM_PROVIDER` and the
+model from repository variables (above), so the gate can move to another model or provider for
+a day without a code change.
 
-Gemini is not free either. The free tier is not available for every Google Cloud project; this
-project's key returned HTTP 403 ("free tier is not available for this project"), so the
-Gemini gate needs billing on that project. Also, `gemini-2.5-flash` (the
-`Settings` default) is closed to new users, which is why the `GEMINI_MODEL` override exists.
+Groq limits are per model, and `openai/gpt-oss-20b` still had its full daily quota. That day's
+remaining runs (the 6 rate-limited scenarios, the demo run) used 20b through command-level
+environment overrides, and the README reports eval numbers per model.
+
+Gemini was considered and not used. The free tier is not available for every Google Cloud
+project; this project's key returned HTTP 403 ("free tier is not available for this project"),
+and enabling billing was declined. Also, `gemini-2.5-flash` (the `Settings` default) is closed to
+new users, which is why the `GEMINI_MODEL` override exists. The Gemini support stays in the code
+and the workflow for when billing is available.
