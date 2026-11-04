@@ -17,6 +17,7 @@ from app.orchestrators.run_graph_routes import (
 )
 from app.orchestrators.run_state_helpers import (
     PERMISSION_STATUS,
+    WRITE_KEPT_WARNING,
     approval_request,
     current_step,
     emit,
@@ -28,6 +29,7 @@ from app.orchestrators.run_state_helpers import (
     review_update,
     tools_of,
 )
+from app.policies.step_retry_policy import StepRetryPolicy
 from app.policies.tool_permission_policy import ToolPermissionPolicy
 from app.schemas.agents.planner_input import PlannerInput
 from app.schemas.agents.planner_output import PlannerOutput
@@ -75,6 +77,7 @@ class AgentRunOrchestrator:
         step_reviewer: BaseAgent[StepReviewerInput, StepReviewerOutput],
         reporter: BaseAgent[ReporterInput, ReporterOutput],
         policy: ToolPermissionPolicy,
+        retry_policy: StepRetryPolicy,
         checkpointer: BaseCheckpointSaver[str],
         max_steps: int,
         max_step_retries: int,
@@ -86,6 +89,7 @@ class AgentRunOrchestrator:
         self._step_reviewer = step_reviewer
         self._reporter = reporter
         self._policy = policy
+        self._retry_policy = retry_policy
         self._max_steps = max_steps
         self._max_step_retries = max_step_retries
         self._graph = self._build_graph().compile(checkpointer=checkpointer)
@@ -266,17 +270,23 @@ class AgentRunOrchestrator:
         review = await self._step_reviewer.run(
             StepReviewerInput(task=state["task"], step=step, call=call, result=result)
         )
-        status = RunStepStatus.SUCCEEDED if review.ok else RunStepStatus.FAILED
+        decision = PolicyDecision(state.get("policy_decision") or PolicyDecision.ALLOW)
+        may_retry = self._retry_policy.may_retry(call.tool, result.ok, decision)
+        # A write that already ran is kept, never repeated: the rejection becomes a warning.
+        kept_write = not review.ok and not may_retry
+        output: dict[str, Any] = {"ok": review.ok, "feedback": review.feedback}
+        if kept_write:
+            output["warning"] = WRITE_KEPT_WARNING
         emit(
             state,
             RunStepKind.REVIEW,
-            status,
+            RunStepStatus.SUCCEEDED if review.ok or kept_write else RunStepStatus.FAILED,
             agent="step_reviewer",
             tool_name=call.tool,
-            output={"ok": review.ok, "feedback": review.feedback},
+            output=output,
             usage=review.usage,
         )
-        return review_update(state, review, result, self._max_step_retries)
+        return review_update(state, review, result, self._max_step_retries, may_retry)
 
     async def _next_step(self, state: RunState) -> dict[str, Any]:
         return next_step_update(state)

@@ -96,20 +96,37 @@ def next_step_update(state: RunState) -> dict[str, Any]:
     }
 
 
+WRITE_KEPT_WARNING = "The write already ran, so it is not repeated."
+
+
 def review_update(
-    state: RunState, review: StepReviewerOutput, result: ToolResult, max_retries: int
+    state: RunState,
+    review: StepReviewerOutput,
+    result: ToolResult,
+    max_retries: int,
+    may_retry: bool,
 ) -> dict[str, Any]:
-    """After a review: retry the step with the reviewer's feedback, or record its outcome."""
+    """After a review: retry the step with the reviewer's feedback, or record its outcome.
+
+    `may_retry` is False when a write already ran (StepRetryPolicy). Then a rejected review
+    does not fail the step: the write is kept and the reviewer's note becomes a warning.
+    """
     attempt = state.get("attempt", 0)
-    if not review.ok and attempt < max_retries:
+    if not review.ok and may_retry and attempt < max_retries:
         return {"attempt": attempt + 1, "retrying": True, "feedback": review.feedback}
     step, call = current_step(state), pending_call(state)
-    outcome: StepOutcome = "succeeded" if review.ok else "failed"
+    kept_write = not review.ok and not may_retry
+    outcome: StepOutcome = "succeeded" if review.ok or kept_write else "failed"
+    note = (
+        f"Reviewer warning: {review.feedback} {WRITE_KEPT_WARNING}"
+        if kept_write
+        else review.feedback
+    )
     update: dict[str, Any] = {
         "retrying": False,
-        "records": [record(step, outcome, call.tool, result, review.feedback)],
+        "records": [record(step, outcome, call.tool, result, note)],
     }
-    if review.ok:
+    if outcome == "succeeded":
         summary = format_tool_result(result, PREVIOUS_RESULT_CHARS)
         update["previous_results"] = [f"step {state['current'] + 1} ({call.tool}): {summary}"]
     return update

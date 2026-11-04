@@ -29,6 +29,7 @@ from app.core.file_prompt_loader import FilePromptLoader
 from app.core.prompt_loader import PromptLoader
 from app.db.session import build_engine, build_session_factory, get_session
 from app.orchestrators.agent_run_orchestrator import AgentRunOrchestrator
+from app.policies.step_retry_policy import StepRetryPolicy
 from app.policies.tool_permission_policy import ToolPermissionPolicy
 from app.repositories.checkpoint_repository import CheckpointRepository
 from app.schemas.caller import Caller
@@ -123,6 +124,7 @@ def get_orchestrator() -> AgentRunOrchestrator:
         step_reviewer=StepReviewerAgent(llm, prompts),
         reporter=ReporterAgent(llm, prompts),
         policy=ToolPermissionPolicy(settings.tool_permission_rules),
+        retry_policy=StepRetryPolicy(settings.read_only_tools),
         checkpointer=get_checkpoint_repository().saver,
         max_steps=settings.max_steps,
         max_step_retries=settings.max_step_retries,
