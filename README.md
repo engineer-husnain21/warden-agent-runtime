@@ -91,7 +91,8 @@ flowchart TD
     H -- admin rejects --> N
     C -- allow --> E[ToolExecutorAgent: call the MCP tool]
     E --> R[StepReviewerAgent: is the result good enough?]
-    R -- no, retry once with feedback --> S
+    R -- no, read-only or call failed: retry once with feedback --> S
+    R -- no, but a write already ran: keep it, note a warning --> N2
     R -- yes --> N2[next step]
     N --> N2
     N2 -- more steps --> S
@@ -367,20 +368,32 @@ starts the warehouse server, and `WAREHOUSE_SEED_ON_STARTUP=true` re-seeds it ea
 demo and the evals always have fresh data. Leave the flag off when you point the warehouse at
 real data.
 
-### 5. A retry can repeat a side effect, and approval does not prevent it
+### 5. A retry repeated an approved write: found by a real-LLM run, fixed with tests
 
-In the demo run on `gpt-oss-20b` ([docs/demo/demo.md](docs/demo/demo.md)):
+A real run on `gpt-oss-20b` ([docs/demo/demo.md](docs/demo/demo.md)) went like this:
 - the reviewer rejected a successful dry-run `github.create_issue` because "the issue was not
   actually created";
-- the orchestrator retried the step, and the retry paused for a second approval;
-- after that approval, the call ran a second time.
+- the orchestrator retried the step, as it did for every rejected step;
+- the retry paused for a second approval, and after that approval the call ran again.
 
-The permission design held: each call needed its own approval, and the audit log shows both.
-But in live mode this would have opened two real issues.
+Each call had its own approval, and the audit log showed both. But in live mode this would have
+opened two real issues. A governed runtime must never repeat an approved write, so this is a
+runtime bug, not a prompt problem. The unit tests were green, because a fake reviewer never
+rejected a write.
 
-The open fix is in the orchestrator, not the prompt: retry a write tool only when the call
-itself failed, never after a successful call that the reviewer disliked. Until then, an admin
-who sees the same call twice should reject the second one.
+**Fix:** `StepRetryPolicy` ([`app/policies/step_retry_policy.py`](app/policies/step_retry_policy.py)),
+a pure policy the orchestrator asks before any retry:
+- the tool call failed → retry: nothing happened yet;
+- the tool needed approval → never retry after it ran;
+- otherwise → retry only tools listed in `READ_ONLY_TOOLS`. An unlisted tool counts as a write.
+
+A write that ran and was then rejected by the reviewer is kept. The step is recorded as
+succeeded, the reviewer's note becomes a warning in the trace and the report, and the run moves on.
+
+The tests in `tests/unit/orchestrators/test_agent_run_orchestrator_retries.py` replay the real
+case: an approved `create_issue` that the reviewer rejects. They assert no second approval and
+no second tool call. They also check that a read-only step is still retried once, and so is a
+write whose call failed. With the old always-retry behaviour, the two write tests fail.
 
 ### 6. Rate limits are part of the eval design
 
@@ -406,6 +419,7 @@ listed with a dummy value in [`.env.example`](.env.example). The most important 
 | `API_KEYS` | dev keys | JSON map of API key → caller name and role |
 | `TOOL_PERMISSION_RULES` | see above | Role → tool pattern → `allow` / `deny` / `needs_approval` |
 | `MAX_STEPS` / `MAX_STEP_RETRIES` | `6` / `1` | Plan length cap; retries of a step after a failed review |
+| `READ_ONLY_TOOLS` | `warehouse.*`, `github.list_issues`, `notifier.list_outbox` | Tools without side effects; only these are retried after a successful call |
 | `GITHUB_MODE` | `dry-run` | `live` creates real issues in `GITHUB_REPO` (needs `GITHUB_TOKEN`) |
 | `WAREHOUSE_SEED_ON_STARTUP` | `false` | Re-seed the demo warehouse from `data/orders.csv` when the server starts |
 | `EVAL_THRESHOLD` | `0.8` | Minimum task success rate and tool-call accuracy for the eval gate |

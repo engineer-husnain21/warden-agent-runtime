@@ -51,7 +51,8 @@ After the approved call, the dry-run GitHub server answered with issue `#1000`. 
 `StepReviewerAgent` (20b) rejected the result: *"The issue was not actually created
 (dry_run: true). Ensure the issue is created on GitHub before proceeding."*
 
-The orchestrator retried the step once (`MAX_STEP_RETRIES=1`). The retried `create_issue` went
+The orchestrator retried the step once (`MAX_STEP_RETRIES=1`). This was the behaviour before
+the fix described at the end of this page. The retried `create_issue` went
 through the policy again and **paused for a second approval**. An approval covers one call,
 never the next one. After the second approval the call ran (`#1001`, dry-run). The reviewer
 rejected it again, so the step was marked failed and the run went on to the report.
@@ -113,10 +114,15 @@ are not written to the audit log, so it has no entry.
 
 - **The gate held under a retry.** Each of the two `create_issue` calls needed its own admin
   approval, and the log records both.
-- **Retrying a side effect can repeat it.** In dry-run nothing was created. In live mode, the
-  retry would have opened a second real issue, even though each one was approved. Follow-up: do
-  not retry a write tool after its call succeeded, only after a failed call, or tell the
-  reviewer that a dry-run result is a success.
+- **Retrying a side effect repeated it, and that is now fixed.** In dry-run nothing was
+  created. In live mode, the retry would have opened a second real issue, even though each one
+  was approved. Since then, `StepRetryPolicy` stops the orchestrator from retrying a write that
+  already ran. With the fix, this run would stop after step 10:
+  - the first `create_issue` is kept, and the step is recorded as succeeded;
+  - the reviewer's note appears as a warning;
+  - there is no second approval and no `#1001`.
+
+  The unit tests replay this case. See README lesson 5.
 - **The smaller model is weaker at judging and planning.** 20b's reviewer treated "dry-run" as
   a failure, which 120b's reviewer does not. Before this run, two 20b attempts at the headline
   task also failed in the planner: one with an empty plan (run `89968b86`, a completed run with
