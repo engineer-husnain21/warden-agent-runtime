@@ -14,6 +14,8 @@ Every request follows one path, top to bottom:
 main.py → middlewares → routers → services → orchestrators → agents → clients (LLM, search, external APIs)
                                      ↓              ↓                     ↓ (MCP over stdio)
                                repositories → db  policies (pure)  mcp_servers/<name>/ (separate processes)
+
+evals/runner.py → app.main.create_app() over in-process HTTP (httpx ASGITransport) → the same flow as above
 ```
 
 ---
@@ -38,9 +40,11 @@ project-root/
     models/              # DB entities (SQLAlchemy)
     db/                  # DB session and setup
   mcp_servers/           # MCP servers, one folder each, run as separate processes (never imported by app/)
+  evals/                 # Eval suite: scenarios/*.yaml, runner.py, reports/ (git-ignored); drives app/ over HTTP
   tests/
     unit/                # Mirrors app/ folder by folder
     integration/         # End-to-end flows
+    fakes/               # Fake clients implementing the client Protocols (no network)
   web/                   # Frontend (if any)
   data/                  # Sample/demo data
   .env.example           # All env vars with dummy values
@@ -71,6 +75,7 @@ Every folder inside `app/` has an `__init__.py`.
 | `prompts/` | Prompt text, one file per prompt | Code |
 | `core/` | Settings, DI setup, logger, exception classes | Feature logic |
 | `mcp_servers/` | Expose tools over MCP, each server in its own process with its own settings | Import from `app/`; get imported by `app/` (reached only via `McpToolClient`) |
+| `evals/` | Run YAML scenarios against the real app over HTTP, score them, write reports, enforce the threshold | Import `app/` beyond `app.main`, `app.core` and `app.schemas`; get imported by `app/` |
 
 ---
 
@@ -114,6 +119,7 @@ Every folder inside `app/` has an `__init__.py`.
 | Policies | `<subject>_policy.py` holding `<Subject>Policy` | `tool_permission_policy.py` |
 | MCP servers | `mcp_servers/<name>/server.py` with `create_server()`; settings class `<Name>Settings` | `mcp_servers/warehouse/server.py` |
 | MCP tool names | snake_case verb, addressed by the app as `<server>.<tool>` | `warehouse.run_query` |
+| Eval scenarios | `evals/scenarios/<group>_<what>.yaml`, `id` = file stem; group is `warehouse`, `github`, `notifier` or `policy` | `github_create_issue_approved.yaml` |
 
 **Suffix list:** `Service`, `Orchestrator`, `Agent`, `Client`, `Repository`, `Policy`, `Request`, `Response`, `Input`, `Output`, `Middleware`, `Error`.
 

@@ -89,3 +89,21 @@ def test_mcp_servers_and_web_when_imported_never_import_app() -> None:
     ]
 
     assert offenders == []
+
+
+EVALS_MAY_IMPORT = ("app.main", "app.core", "app.schemas")
+
+
+def test_evals_when_imported_use_only_app_entry_point_core_and_schemas() -> None:
+    """Evals drive the app over HTTP, so they never reach into services, agents or repositories."""
+    offenders = [
+        f"{path.relative_to(PROJECT_ROOT)} imports {name}"
+        for path in (PROJECT_ROOT / "evals").rglob("*.py")
+        for name in _imports(path)
+        if name.split(".")[0] == "app"
+        and not any(
+            name == allowed or name.startswith(f"{allowed}.") for allowed in EVALS_MAY_IMPORT
+        )
+    ]
+
+    assert offenders == []
