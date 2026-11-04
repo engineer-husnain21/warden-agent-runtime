@@ -63,7 +63,13 @@ The 9 smoke scenarios:
 - an admin write without a pause.
 
 **CI details:** `.github/workflows/evals.yml`.
-- The Groq key comes from the `GROQ_API_KEY` repository secret.
+- The provider comes from the `LLM_PROVIDER` repository **variable** (`groq` or `gemini`,
+  default `groq` when unset). This is the same `.env` switch the app uses, so moving the gate to
+  another provider needs no code change and no PR.
+- Keys come from repository **secrets**: `GROQ_API_KEY`, and `GEMINI_API_KEY` for Gemini. The
+  job fails at once, with the missing secret's name, when the chosen provider has no key.
+- An optional `GEMINI_MODEL` repository variable overrides the default Gemini model, so a model
+  that Google retires can be replaced from the repository settings.
 - The Markdown report goes to the job summary. The JSON report, which holds each scenario's
   trace and final report, is uploaded as an artifact.
 
@@ -87,5 +93,20 @@ The 9 smoke scenarios:
   threshold quietly.
 - Forks do not get the secret, so the eval job only runs for branches of this repository.
 - If the budget becomes a bottleneck, there are three options: a paid tier (then run the full
-  suite on PRs), a nightly full run, or the gate on Gemini through the existing `LLM_PROVIDER`
-  switch.
+  suite on PRs), a nightly full run, or moving the gate to Gemini with the `LLM_PROVIDER`
+  repository variable.
+- Scores are only comparable within one provider and model. Reports and the README name the
+  model with every number.
+
+## Update 2026-11-04: provider switch for the gate
+
+On Day 7 a full local run used about 116k Groq tokens. Together with the previous day's runs,
+still inside Groq's rolling daily window, that used up the free-tier budget. The last 6 scenarios
+failed with HTTP 429, and the next requests failed the same way. A PR opened that day would have
+failed the gate on rate limits, not on quality. The workflow now reads `LLM_PROVIDER` from a
+repository variable (above), so the gate can move to Gemini for a day without a code change.
+
+Gemini is not free either. The free tier is not available for every Google Cloud project; this
+project's key returned HTTP 403 ("free tier is not available for this project"), so the
+Gemini gate needs billing on that project. Also, `gemini-2.5-flash` (the
+`Settings` default) is closed to new users, which is why the `GEMINI_MODEL` override exists.
