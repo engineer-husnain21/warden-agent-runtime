@@ -26,6 +26,11 @@ def approval_card_key(approval_id: str) -> str:
     return f"approval-{approval_id}"
 
 
+def run_row_key(run_id: str) -> str:
+    """Container key for a home-page run row; the `st-key-run-row-*` class it adds is styled."""
+    return f"run-row-{run_id}"
+
+
 def metric_card(label: str, value: str, icon: str, color: str) -> str:
     """One coloured stat card (soft gradient, glowing border, coloured icon) as HTML."""
     return (

@@ -9,7 +9,14 @@ import streamlit as st
 
 from web import theme
 from web.charts import status_donut_chart
-from web.console_layout import metric_card, metric_row, setup_page, short_time, status_pill
+from web.console_layout import (
+    metric_card,
+    metric_row,
+    run_row_key,
+    setup_page,
+    short_time,
+    status_pill,
+)
 from web.console_state import SELECTED_RUN_KEY, get_api_client, render_sidebar
 from web.warden_api_error import WardenApiError
 
@@ -84,14 +91,19 @@ def overview_panel() -> None:
 
 
 def _render_run_row(run: dict[str, Any]) -> None:
-    with st.container(border=True):
-        pill_col, task_col, meta_col, open_col = st.columns(
-            [1.4, 5.4, 2.2, 1.3], vertical_alignment="center"
-        )
-        pill_col.markdown(status_pill(run["status"]), unsafe_allow_html=True)
-        task_col.markdown(f"**{run['task']}**")
-        meta_col.caption(f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}")
-        if open_col.button("Open", key=f"open-{run['id']}", width="stretch"):
+    """Fixed-width pill | task + meta (wraps, takes the rest) | Open button (never shrinks).
+    Column widths are set in console_styles.py through the `st-key-run-row-*` class."""
+    with st.container(
+        border=True,
+        horizontal=True,
+        vertical_alignment="center",
+        key=run_row_key(run["id"]),
+    ):
+        st.markdown(status_pill(run["status"]), unsafe_allow_html=True, width="content")
+        with st.container(gap=None):
+            st.markdown(f"**{run['task']}**")
+            st.caption(f"{run['requested_by']} ({run['role']}) · {short_time(run['created_at'])}")
+        if st.button("Open", key=f"open-{run['id']}", width="content"):
             st.session_state[SELECTED_RUN_KEY] = run["id"]
             st.switch_page("pages/run_detail.py")
 
